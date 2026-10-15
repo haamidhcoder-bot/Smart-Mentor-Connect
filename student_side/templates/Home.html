@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block head %}
+<title>Home | Smart Mentor Connect</title>
+{% endblock %}
+
+{% block body %}
+<div class="container">
+  <div class="card">
+    <div class="welcome-row">
+      <h2>Hi, {{ student.student_name }}</h2>
+      <span class="chip">Class {{ student.student_class }} - {{ student.section }} &middot; Roll {{ student.roll_no }}</span>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <span class="stat-label">Attendance</span>
+        {% if attendance_pct is not none %}
+          <span class="stat-value">{{ attendance_pct }}%</span>
+          <span class="stat-sub">{{ attendance_marked }} days recorded</span>
+        {% else %}
+          <span class="stat-value">&ndash;</span><span class="stat-sub">Nothing recorded yet</span>
+        {% endif %}
+      </div>
+      {% if summary and summary.count %}
+      <div class="stat-card">
+        <span class="stat-label">{{ exam_name }}</span>
+        <span class="stat-value">{{ summary.total }}<small style="font-size:1rem;"> / {{ summary.out_of }}</small></span>
+        <span class="stat-sub">{{ summary.percentage }}%</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Subjects passed</span>
+        <span class="stat-value">{{ summary.passed }} / {{ summary.count }}</span>
+        <span class="stat-sub">Pass mark is above 30</span>
+      </div>
+      {% endif %}
+      {% if rank %}
+      <div class="stat-card">
+        <span class="stat-label">Class rank</span>
+        <span class="stat-value">#{{ rank[0] }}</span>
+        <span class="stat-sub">of {{ rank[1] }} students</span>
+      </div>
+      {% elif summary and summary.count %}
+      <div class="stat-card muted">
+        <span class="stat-label">Class rank</span>
+        <span class="stat-value">&ndash;</span>
+        <span class="stat-sub">Shown once all subjects have marks</span>
+      </div>
+      {% endif %}
+    </div>
+
+    <h3 class="section-title">My marks</h3>
+    <form method="GET" action="/home" class="filter-bar">
+      <div class="field">
+        <label for="exam">Exam</label>
+        <select name="exam" id="exam" onchange="this.form.submit()">
+          {% for e in exams %}
+          <option value="{{ e.exam_id }}" {% if e.exam_id == exam_id %}selected{% endif %}>{{ e.exam_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field" style="flex:0 0 auto;">
+        <button type="submit" style="margin-top:0;">Show results</button>
+      </div>
+    </form>
+
+    {% if subjects %}
+    <table>
+      <thead><tr><th>Subject</th><th>Marks</th><th>Score</th><th>Result</th><th>Progress</th></tr></thead>
+      <tbody>
+        {% for s in subjects %}
+        <tr>
+          <td data-label="Subject">{{ s.subject }}</td>
+          <td data-label="Marks">{% if s.marks %}{{ s.marks }} / 100{% else %}&ndash;{% endif %}</td>
+          <td data-label="Score"><div class="mark-bar"><span style="width:{{ s.marks }}%"></span></div></td>
+          <td data-label="Result">
+            {% if s.status == 'Pass' %}<span class="badge pass">Pass</span>
+            {% elif s.status == 'Fail' %}<span class="badge fail">Fail</span>
+            {% else %}<span class="badge none">Not entered</span>{% endif %}
+          </td>
+          <td data-label="Progress">
+            {% if s.marks %}<a class="table-link" href="/graph/{{ s.subject }}/{{ exam_id }}" onclick="showPageLoadingOverlay('Loading graph...')">Trend</a>{% else %}&ndash;{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if summary.complete %}
+    <p style="margin-top:18px;"><a class="link-btn" href="/piegraph/{{ exam_id }}" onclick="showPageLoadingOverlay('Loading graph...')"><i class="fa-solid fa-chart-pie"></i> Marks breakdown</a></p>
+    {% else %}
+    <p class="hint">The marks breakdown chart appears once marks are entered for every subject.</p>
+    {% endif %}
+    {% else %}
+    <h4>No marks have been added for you yet.</h4>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

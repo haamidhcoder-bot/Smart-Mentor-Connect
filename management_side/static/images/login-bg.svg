@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#DCE9F7"/>
+      <stop offset="35%" stop-color="#9FBCE0"/>
+      <stop offset="70%" stop-color="#4E68A8"/>
+      <stop offset="100%" stop-color="#1B2350"/>
+    </linearGradient>
+    <linearGradient id="m1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#B7C9EA"/>
+      <stop offset="100%" stop-color="#95AEDD"/>
+    </linearGradient>
+    <linearGradient id="m2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7C93CE"/>
+      <stop offset="100%" stop-color="#5F79BE"/>
+    </linearGradient>
+    <linearGradient id="m3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#4A5FA0"/>
+      <stop offset="100%" stop-color="#37457C"/>
+    </linearGradient>
+    <linearGradient id="m4" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#232C58"/>
+      <stop offset="100%" stop-color="#161B3D"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="1600" height="900" fill="url(#sky)"/>
+
+  <!-- soft moon glow -->
+  <circle cx="1180" cy="230" r="150" fill="#EAF2FF" opacity="0.18"/>
+  <circle cx="1180" cy="230" r="70" fill="#F5F9FF" opacity="0.55"/>
+
+  <!-- birds -->
+  <g stroke="#2B3466" stroke-width="4" fill="none" opacity="0.55">
+    <path d="M300 120 q10 -12 20 0 q10 -12 20 0"/>
+    <path d="M360 150 q8 -10 16 0 q8 -10 16 0"/>
+    <path d="M900 90 q9 -11 18 0 q9 -11 18 0"/>
+  </g>
+
+  <!-- distant mountain layer -->
+  <polygon fill="url(#m1)" opacity="0.75"
+    points="0,430 150,330 300,410 480,300 650,400 820,320 1000,420 1180,340 1360,430 1600,360 1600,900 0,900"/>
+
+  <!-- mid mountain layer -->
+  <polygon fill="url(#m2)" opacity="0.85"
+    points="0,520 200,410 380,500 560,390 760,510 940,420 1140,530 1330,440 1600,520 1600,900 0,900"/>
+
+  <!-- closer mountain layer -->
+  <polygon fill="url(#m3)"
+    points="0,620 180,540 420,640 620,520 860,650 1080,560 1300,660 1600,580 1600,900 0,900"/>
+
+  <!-- foreground peak layer -->
+  <polygon fill="url(#m4)"
+    points="0,720 260,600 500,730 760,610 1020,740 1280,620 1600,720 1600,900 0,900"/>
+
+  <!-- foreground pine silhouettes -->
+  <g fill="#0E1330">
+    <path d="M40 900 L70 780 L100 900 Z"/>
+    <path d="M90 900 L120 800 L150 900 Z"/>
+    <path d="M140 900 L165 810 L190 900 Z"/>
+    <path d="M1400 900 L1430 790 L1460 900 Z"/>
+    <path d="M1450 900 L1478 805 L1506 900 Z"/>
+    <path d="M1500 900 L1525 815 L1550 900 Z"/>
+    <path d="M1560 900 L1582 825 L1604 900 Z"/>
+  </g>
+</svg>

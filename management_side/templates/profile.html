@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block head %}
+<title>Profile | Smart Mentor Connect</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="account-page">
+    <div class="account-shell">
+        <div class="account-card">
+            <div class="account-cover">
+                <div class="account-avatar">{{ initials }}</div>
+            </div>
+
+            <div class="account-main">
+                <h1>{{ display_name }}</h1>
+                <p class="account-subtitle">{{ role }}</p>
+
+                <div class="account-info">
+                    <div class="account-info-row">
+                        <span class="account-info-label">Email</span>
+                        <span class="account-info-value">{{ account.Gmail }}</span>
+                    </div>
+                    <div class="account-info-row">
+                        <span class="account-info-label">Role</span>
+                        <span class="account-info-value">{{ role }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="account-setting-row" style="border-top:0; margin-top:8px;">
+                <div>
+                    <div class="account-menu-left">
+                        <i class="fa-regular fa-moon account-menu-icon"></i>
+                        <span>Dark mode</span>
+                    </div>
+                </div>
+                <label class="theme-switch" aria-label="Toggle dark mode">
+                    <input type="checkbox" id="profileDarkModeToggle">
+                    <span class="theme-slider"></span>
+                </label>
+            </div>
+
+            <div class="account-menu">
+                <a class="account-menu-item" href="{{ url_for('pages.profile_details') }}">
+                    <span class="account-menu-left">
+                        <i class="fa-regular fa-user account-menu-icon"></i>
+                        <span>Profile details</span>
+                    </span>
+                    <i class="fa-solid fa-chevron-right account-chevron"></i>
+                </a>
+
+                <a class="account-menu-item" href="{{ url_for('pages.settings') }}">
+                    <span class="account-menu-left">
+                        <i class="fa-solid fa-sliders account-menu-icon"></i>
+                        <span>Settings</span>
+                    </span>
+                    <i class="fa-solid fa-chevron-right account-chevron"></i>
+                </a>
+
+                <a class="account-menu-item account-logout" href="{{ url_for('pages.delete_account') }}">
+                    <span class="account-menu-left">
+                        <i class="fa-solid fa-trash-can account-menu-icon"></i>
+                        <span>Delete account</span>
+                    </span>
+                    <i class="fa-solid fa-chevron-right account-chevron"></i>
+                </a>
+
+                <form action="{{ url_for('auth.log_out') }}" method="get" id="logoutForm">
+                    <button class="account-menu-item account-logout" type="submit">
+                        <span class="account-menu-left">
+                            <i class="fa-solid fa-right-from-bracket account-menu-icon"></i>
+                            <span>Log out</span>
+                        </span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const toggle = document.getElementById("profileDarkModeToggle");
+    const enabled = localStorage.getItem("spa-dark-mode") === "true";
+    toggle.checked = enabled;
+    toggle.addEventListener("change", function () {
+        const isDark = this.checked;
+        localStorage.setItem("spa-dark-mode", String(isDark));
+        document.documentElement.classList.toggle("dark-mode", isDark);
+        document.body.classList.toggle("dark-mode", isDark);
+    });
+})();
+
+document.getElementById("logoutForm").addEventListener("submit", function () {
+    if (typeof showPageLoadingOverlay === "function") {
+        showPageLoadingOverlay("Logging out...");
+    }
+});
+</script>
+{% endblock %}

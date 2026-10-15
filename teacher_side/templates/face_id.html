@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block head %}
+<title>Face ID | Smart Mentor Connect</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
+{% endblock %}
+{% block body %}
+<div class="account-page">
+    <div class="account-shell">
+        <div class="account-card account-form-card">
+            <h1>Face ID</h1>
+            <p class="lead">Capture your face once and use it for Face ID login.</p>
+            {% if error %}<div class="account-error">{{ error }}</div>{% endif %}
+
+            <div class="face-box">
+                <div class="face-frame" id="faceFrame">
+                    <video id="faceVideo" class="face-video" autoplay playsinline></video>
+                    <img id="facePreview" class="face-video face-preview" alt="Captured face preview">
+                    <svg class="face-guide" id="faceGuide" viewBox="0 0 300 225" style="display:none;">
+                        <ellipse cx="150" cy="112" rx="78" ry="98" />
+                    </svg>
+                </div>
+
+                <p class="face-status" id="faceStatus">
+                    {% if enabled %}Face ID is already configured. Capturing a new image will replace it.{% else %}No Face ID is configured yet.{% endif %}
+                </p>
+                <button type="button" class="account-btn" id="startCamera">Open Camera</button>
+
+                <form id="faceForm" method="post" enctype="multipart/form-data" style="display:none;">
+                    <input type="file" id="faceFile" name="face" accept="image/*" hidden>
+                    <div class="account-actions" style="justify-content:center;">
+                        <button type="button" class="account-btn secondary" id="retake">Retake</button>
+                        <button type="submit" class="account-btn">Save Face ID</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .face-frame {
+        position: relative;
+        width: min(100%, 420px);
+        margin: 0 auto 18px;
+    }
+    .face-frame .face-video { margin: 0; }
+    .face-preview { display: none; object-fit: cover; }
+    .face-guide {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+    }
+    .face-guide ellipse {
+        fill: none;
+        stroke: rgba(255, 255, 255, 0.85);
+        stroke-width: 3;
+        stroke-dasharray: 10 8;
+        animation: faceGuideSpin 6s linear infinite;
+    }
+    @keyframes faceGuideSpin {
+        to { stroke-dashoffset: -180; }
+    }
+</style>
+
+<script src="{{ url_for('static', filename='js/face-capture.js') }}"></script>
+<script>
+(function () {
+    const video = document.getElementById("faceVideo");
+    const preview = document.getElementById("facePreview");
+    const guide = document.getElementById("faceGuide");
+    const start = document.getElementById("startCamera");
+    const form = document.getElementById("faceForm");
+    const fileInput = document.getElementById("faceFile");
+    const retake = document.getElementById("retake");
+    const status = document.getElementById("faceStatus");
+    let stream = null;
+
+    async function openCamera() {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            video.srcObject = stream;
+            video.style.display = "block";
+            preview.style.display = "none";
+            guide.style.display = "block";
+            start.textContent = "Capture Face";
+            start.onclick = captureFace;
+            status.textContent = "Center your face in the outline, then press Capture Face.";
+        } catch (error) {
+            status.textContent = "Camera permission was not granted or the camera is unavailable.";
+        }
+    }
+
+    async function captureFace() {
+        const canvas = document.createElement("canvas");
+        // Flashes the screen white first if the room looks dark, so the
+        // saved reference photo stays clear enough to match against later.
+        const blob = await captureFaceFrame(video, canvas);
+
+        const file = new File([blob], "face.jpg", { type: "image/jpeg" });
+        const transfer = new DataTransfer();
+        transfer.items.add(file);
+        fileInput.files = transfer.files;
+
+        // Show the actual captured photo so the person can confirm it
+        // looks right before saving it as their Face ID.
+        preview.src = URL.createObjectURL(blob);
+        preview.style.display = "block";
+        video.style.display = "none";
+        guide.style.display = "none";
+
+        form.style.display = "block";
+        start.style.display = "none";
+        status.textContent = "This is what will be saved. Looks good? Press Save, or Retake.";
+        stopCamera();
+    }
+
+    function stopCamera() {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            stream = null;
+        }
+    }
+
+    function resetCapture() {
+        form.style.display = "none";
+        start.style.display = "inline-flex";
+        start.textContent = "Open Camera";
+        start.onclick = openCamera;
+        preview.style.display = "none";
+        status.textContent = "Open the camera and capture your face.";
+    }
+
+    retake.addEventListener("click", resetCapture);
+    start.addEventListener("click", openCamera);
+    window.addEventListener("beforeunload", stopCamera);
+})();
+</script>
+{% endblock %}

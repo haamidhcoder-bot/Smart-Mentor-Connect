@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block head %}
+<title>Leaderboard | Smart Mentor Connect</title>
+{% endblock %}
+
+{% block body %}
+<div class="container">
+  <div class="card">
+    <h2>Class {{ student.student_class }} - {{ student.section }} Leaderboard</h2>
+
+    <form method="GET" action="/leaderboard" class="filter-bar">
+      <div class="field">
+        <label for="exam">Exam</label>
+        <select name="exam" id="exam" onchange="this.form.submit()">
+          {% for e in exams %}
+          <option value="{{ e.exam_id }}" {% if e.exam_id == exam_id %}selected{% endif %}>{{ e.exam_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field" style="flex:0 0 auto; align-self:flex-end;">
+        <button type="submit" style="margin-top:0;">Show Leaderboard</button>
+      </div>
+    </form>
+
+    {% if podium %}
+    <div class="podium-wrap">
+      <div class="podium">
+        {% for entry in [podium[1] if podium|length > 1 else none,
+                         podium[0] if podium|length > 0 else none,
+                         podium[2] if podium|length > 2 else none] %}
+          {% if entry %}
+          <div class="podium-place place-{{ entry.rank }}">
+            <div class="podium-info">
+              <span class="podium-name">{{ entry.name }}</span>
+              <span class="podium-marks">{{ entry.marks }} marks</span>
+            </div>
+            <div class="podium-block"><span class="podium-rank">{{ entry.rank }}</span></div>
+          </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+      <div class="podium-base"></div>
+    </div>
+    {% else %}
+    <h4>There is no data to show for {{ exam_name or 'this exam' }} yet.</h4>
+    {% endif %}
+
+    {% if rank %}
+    <div class="rank-card">
+      <span class="big">#{{ rank[0] }}</span>
+      <div><strong>Your rank in {{ exam_name }}</strong><br>
+        <span class="hint">{{ rank[2] }} marks &middot; out of {{ rank[1] }} students</span></div>
+    </div>
+    {% elif podium %}
+    <p class="hint">Your rank appears once all your subject marks are entered.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block head %}
+<title>Sending Results… | Smart Mentor Connect</title>
+{% endblock %}
+
+{% block body %}
+<div class="container">
+    <div class="card" style="text-align:center; padding:60px 32px;">
+        <center>
+            <div class="mail-loader-container">
+                <div class="scenery">
+                  <!-- Inbox tray -->
+                  <svg class="inbox" viewBox="0 0 60 40" fill="none">
+                    <path d="M2 18 L16 18 L22 26 L38 26 L44 18 L58 18 L58 36 Q58 38 56 38 L4 38 Q2 38 2 36 Z" style="fill: var(--primary-pale); stroke: var(--primary);" stroke-width="2" stroke-linejoin="round"/>
+                  </svg>
+
+                  <!-- Flying letters -->
+                  <div class="letter letter-1"></div>
+                  <div class="letter letter-2"></div>
+                  <div class="letter letter-3"></div>
+                </div>
+                <p class="loading-text">Sending Email<span>.</span><span>.</span><span>.</span></p>
+              </div>
+
+        </center>
+        <h2 id="loadingTitle">Sending results to parents…</h2>
+        <p id="loadingSubtext" style="color: var(--text-muted);">
+            Please don't close or refresh this page while emails are being sent.
+        </p>
+        <button type="button" id="cancelSendBtn" class="cancel-btn">
+            Cancel
+        </button>
+        <button type="button" id="runBackgroundBtn" class="run-back">
+            Run in Background
+        </button>
+    </div>
+</div>
+
+<style>
+.spinner {
+    margin: 0 auto 24px;
+    width: 56px;
+    height: 56px;
+    border: 6px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.cancel-btn {
+    background: var(--white);
+    color: var(--error);
+    border: 1px solid var(--error);
+    transition: background-color 0.15s, color 0.15s;
+}
+.cancel-btn:hover {
+    background: var(--error);
+    color: var(--white);
+}
+.run-back{
+    color:  var(--white);
+    border: 1px solid var(--white);
+    transition: background-color 0.15s, color 0.15s;
+}
+.run-back:disabled,
+.cancel-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+</style>
+
+<script>
+    (function () {
+        var STORAGE_KEY = "bgEmailJob";
+
+        var params = new URLSearchParams(window.location.search);
+        var sub = params.get("sub") || "";
+        var exam = params.get("exam") || "";
+
+        if (!sub || !exam) {
+            window.location.href = "/error_page?msg=" + encodeURIComponent("Missing subject or exam. Please try again.");
+            return;
+        }
+
+        // Backend accepts either the class<=10 or class>10 subject field names,
+        // so we send both to be safe. Exam field name is the same for both classes.
+        var formData = new FormData();
+        formData.append("subject10", sub);
+        formData.append("subject12", sub);
+        formData.append("exam", exam);
+
+        var jobId = null;
+        var backgrounded = false;
+        var pollTimer = null;
+
+        var cancelBtn = document.getElementById("cancelSendBtn");
+        var bgBtn = document.getElementById("runBackgroundBtn");
+
+        function pollStatus() {
+            if (backgrounded) return;
+
+            fetch("/send_results/status/" + jobId)
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    if (backgrounded) return;
+
+                    if (data.status === "done") {
+                        var successParams = new URLSearchParams({
+                            sent: data.sent_count,
+                            sub: sub,
+                            exam: exam
+                        });
+                        window.location.href = "/success?" + successParams.toString();
+                    } else if (data.status === "error") {
+                        window.location.href = "/error_page?msg=" + encodeURIComponent(
+                            data.message || "Something went wrong while sending results."
+                        );
+                    } else if (data.status === "cancelled") {
+                        window.location.href = "/home";
+                    } else {
+                        // still "running" - check again shortly
+                        pollTimer = setTimeout(pollStatus, 1000);
+                    }
+                })
+                .catch(function () {
+                    // transient network hiccup - keep trying rather than bailing out
+                    pollTimer = setTimeout(pollStatus, 2000);
+                });
+        }
+
+        cancelBtn.addEventListener("click", function () {
+            if (backgrounded) return;
+            cancelBtn.disabled = true;
+            cancelBtn.textContent = "Cancelling…";
+            if (pollTimer) clearTimeout(pollTimer);
+
+            if (jobId) {
+                fetch("/send_results/cancel/" + jobId, { method: "POST" })
+                    .catch(function () { /* best effort */ })
+                    .finally(function () {
+                        window.location.href = "/home";
+                    });
+            } else {
+                window.location.href = "/home";
+            }
+        });
+
+        bgBtn.addEventListener("click", function () {
+            if (backgrounded || !jobId) return;
+            backgrounded = true;
+            if (pollTimer) clearTimeout(pollTimer);
+
+            // Hand off the job_id so a small watcher script (see
+            // bg-email-watcher.js) can keep polling from wherever the
+            // user ends up, and pop up a toast when it's done.
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                jobId: jobId,
+                sub: sub,
+                exam: exam
+            }));
+
+            window.location.href = "/home";
+        });
+
+        // Kick off the send. The server starts a background thread and
+        // hands back a job_id right away instead of blocking here.
+        fetch("/send_results", {
+            method: "POST",
+            body: formData
+        })
+        .then(function (res) {
+            return res.json().then(function (data) {
+                return { ok: res.ok, data: data };
+            });
+        })
+        .then(function (result) {
+            if (!result.ok || result.data.status !== "started") {
+                var msg = (result.data && result.data.message) || "Something went wrong while sending results.";
+                window.location.href = "/error_page?msg=" + encodeURIComponent(msg);
+                return;
+            }
+            jobId = result.data.job_id;
+            pollStatus();
+        })
+        .catch(function (err) {
+            window.location.href = "/error_page?msg=" + encodeURIComponent("Network error: " + err.message);
+        });
+    })();
+</script>
+{% endblock %}

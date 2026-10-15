@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit | Smart Mentor Connect</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/smart-mentor-connect.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/smart-mentor-connect.png') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="card edit-form">
+            <h2>Edit mark</h2>
+            <p style="color: var(--text-muted); margin-top: -8px;">
+                Roll no {{ marks.roll_no }} &middot; {{ marks.subject }}
+            </p>
+            <form action="/edit/{{marks.roll_no}}/{{marks.subject}}/{{marks.exam_id}}" method="post">
+                <label for="content">New Mark</label>
+                <input type="number" name="content" id="content" min="0" max="100" placeholder="for 100" required>
+                <button type="submit" style="width:100%;">Update</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

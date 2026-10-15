@@ -1,0 +1,400 @@
+{% extends "base.html" %}
+
+{% block head %}
+<title>Attendance | Smart Mentor Connect</title>
+<style>
+    .attendance-wrap {
+        padding: 24px 32px;
+        font-family: -apple-system, "Segoe UI", Arial, sans-serif;
+    }
+
+    .attendance-header {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1a2b3c;
+        margin-bottom: 20px;
+    }
+
+    .attendance-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+    }
+
+    .attendance-search {
+        flex: 1;
+        min-width: 220px;
+        padding: 12px 16px;
+        border: none;
+        border-radius: 8px;
+        background: #eaf1fb;
+        font-size: 0.95rem;
+        color: #1a2b3c;
+    }
+
+    .attendance-search::placeholder {
+        color: #8797a8;
+    }
+
+    .attendance-toolbar-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .attendance-month {
+        padding: 10px 14px;
+        border: 1px solid #cfd9e4;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        color: #1a2b3c;
+        background: #fff;
+    }
+
+    .mark-all-btn {
+        padding: 10px 18px;
+        border: none;
+        border-radius: 8px;
+        background: #1f9d55;
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.85rem;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .mark-all-btn:hover {
+        background: #188046;
+    }
+
+    .attendance-legend {
+        display: flex;
+        gap: 18px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #1a2b3c;
+        margin-bottom: 14px;
+    }
+
+    .attendance-legend span {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .legend-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+
+    /* --- CSS Grid attendance table (replaces <table>) --- */
+    .grid-scroll {
+        overflow-x: auto;
+        border-radius: 10px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    .attendance-grid {
+        display: grid;
+        /* grid-template-columns is set dynamically in JS: 100px 160px + one 34px track per day */
+    }
+
+    .acell {
+        padding: 12px 20px;
+        color: #1a2b3c;
+        font-size: 0.9rem;
+        border-bottom: 1px solid #e9eef4;
+        white-space: nowrap;
+        background: #fff;
+        display: flex;
+        align-items: center;
+    }
+
+    .acell.row-even {
+        background: #f2f7fd;
+    }
+
+    .acell.ahead {
+        background: #1a5f9e;
+        color: #fff;
+        font-size: 0.8rem;
+        letter-spacing: 0.04em;
+        font-weight: 700;
+        padding: 14px 20px;
+    }
+
+    .acell.col-day {
+        justify-content: center;
+        padding: 8px 0;
+        font-size: 0.7rem;
+    }
+
+    .acell.row-hidden {
+        display: none;
+    }
+
+    /* Roll No + Student Name columns pinned in place while day columns scroll.
+       Because grid-template-columns fixes exact track widths (100px / 160px),
+       these left offsets can never drift out of sync with real rendered width
+       — unlike a <table>, where column width is content-dependent unless pinned. */
+    .acell.col-roll {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+    }
+
+    .acell.col-name {
+        position: sticky;
+        left: 100px;
+        z-index: 2;
+        box-shadow: 2px 0 4px rgba(0, 0, 0, 0.06);
+    }
+
+    .acell.ahead.col-roll,
+    .acell.ahead.col-name {
+        z-index: 3;
+    }
+
+    .day-bubble {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 2px solid #cdd9e4;
+        background: #fff;
+        cursor: pointer;
+        padding: 0;
+        transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .day-bubble:hover {
+        border-color: #1a5f9e;
+    }
+
+    .day-bubble[data-state="present"] {
+        border-color: #1f9d55;
+        background: #1f9d55;
+    }
+
+    .day-bubble[data-state="absent"] {
+        border-color: #d64545;
+        background: #d64545;
+    }
+
+    .day-bubble[data-state="leave"] {
+        border-color: #e0a300;
+        background: #e0a300;
+    }
+
+    .attendance-footer {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 20px;
+    }
+
+    .save-btn {
+        padding: 12px 28px;
+        border: none;
+        border-radius: 8px;
+        background: #1a5f9e;
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.95rem;
+        cursor: pointer;
+    }
+
+    .save-btn:hover {
+        background: #164e83;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="attendance-wrap">
+    <div class="attendance-header">Attendance</div>
+    <div style="display:flex; align-items:center; justify-content:space-between;">
+        <h2 style="margin-bottom:0;">
+            {% if class_value %}Class {{ class_value }}{% if sec %} - Section {{ sec }}{% endif %}{% endif %}
+      </h2>
+    </div>
+
+    {%if students%}
+    <div class="attendance-toolbar">
+        <input type="text" class="attendance-search" placeholder="Search by name or roll no" id="attendanceSearch">
+        <div class="attendance-toolbar-right">
+            <button type="button" class="mark-all-btn" id="markAllPresentBtn" style="display:none;">Mark all present (today)</button>
+            <div class="premium-field" style="margin-bottom:0;">
+                <span class="premium-field-icon">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                </span>
+                <input type="month" class="attendance-month" id="attendanceMonth">
+            </div>
+        </div>
+    </div>
+
+    <div class="attendance-legend">
+        <span><span class="legend-dot" style="background:#1f9d55;"></span>Present</span>
+        <span><span class="legend-dot" style="background:#d64545;"></span>Absent</span>
+        <span><span class="legend-dot" style="background:#e0a300;"></span>Leave</span>
+        <span><span class="legend-dot" style="background:#fff;border:2px solid #cdd9e4;"></span>Not marked (click a day to cycle)</span>
+    </div>
+
+    <script type="application/json" id="studentsData">{{ students | tojson }}</script>
+    <script type="application/json" id="existingRecords">{{ existing_records | tojson }}</script>
+
+    <form id="attendanceForm" method="POST" action="{{ url_for('reports.attendence') }}">
+        <div class="grid-scroll">
+            <div class="attendance-grid" id="attendanceGrid" role="table" aria-label="Attendance"></div>
+        </div>
+
+        <input type="hidden" name="attendance_data" id="attendanceDataInput">
+
+        <div class="attendance-footer">
+            <button type="submit" class="save-btn">Save attendance</button>
+        </div>
+    </form>
+    {%else%}
+    <h4>There is no data to show</h4>
+    {%endif%}
+</div>
+
+<script>
+    const students = JSON.parse(document.getElementById('studentsData').textContent);
+    const existingRecords = JSON.parse(document.getElementById('existingRecords').textContent || "{}");
+    const STATES = ["none", "present", "absent", "leave"];
+
+    const monthInput = document.getElementById('attendanceMonth');
+    monthInput.value = "{{ selected_month }}";
+
+    // Reload from the server (carrying that month's saved data) whenever the month changes.
+    monthInput.addEventListener('change', function () {
+        window.location.href = "{{ url_for('reports.attendence') }}?month=" + monthInput.value;
+    });
+
+    // per-student, per-day state store: state[roll][day] = "none" | "present" | "absent" | "leave"
+    // pre-filled from whatever was already saved for this month.
+    const state = {};
+    students.forEach(function (s) {
+        state[s.roll_no] = Object.assign({}, existingRecords[String(s.roll_no)] || {});
+    });
+
+    function daysInMonth(year, month) {
+        // month is 1-indexed here
+        return new Date(year, month, 0).getDate();
+    }
+
+    // True only when the month currently being viewed is the real, current
+    // calendar month — the "mark all present" button only ever targets today.
+    function viewingCurrentMonth() {
+        const now = new Date();
+        const currentYm = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
+        return monthInput.value === currentYm;
+    }
+
+    function makeCell(className, text) {
+        const el = document.createElement('div');
+        el.className = 'acell ' + className;
+        if (text !== undefined) el.textContent = text;
+        return el;
+    }
+
+    function renderGrid() {
+        const [year, month] = monthInput.value.split("-").map(Number);
+        const numDays = daysInMonth(year, month);
+
+        const grid = document.getElementById('attendanceGrid');
+        grid.innerHTML = "";
+        grid.style.gridTemplateColumns = "100px 160px " + "34px ".repeat(numDays).trim();
+
+        // header row
+        grid.appendChild(makeCell('ahead col-roll', 'ROLL NO'));
+        grid.appendChild(makeCell('ahead col-name', 'STUDENT NAME'));
+        for (let d = 1; d <= numDays; d++) {
+            grid.appendChild(makeCell('ahead col-day', String(d)));
+        }
+
+        // student rows
+        students.forEach(function (s, idx) {
+            const stripe = (idx % 2 === 1) ? ' row-even' : '';
+
+            const rollCell = makeCell('col-roll' + stripe, s.roll_no);
+            rollCell.dataset.roll = s.roll_no;
+            rollCell.dataset.name = s.name.toLowerCase();
+            grid.appendChild(rollCell);
+
+            const nameCell = makeCell('col-name' + stripe, s.name);
+            nameCell.dataset.roll = s.roll_no;
+            nameCell.dataset.name = s.name.toLowerCase();
+            grid.appendChild(nameCell);
+
+            for (let d = 1; d <= numDays; d++) {
+                const dayCell = makeCell('col-day' + stripe);
+                dayCell.dataset.roll = s.roll_no;
+                dayCell.dataset.name = s.name.toLowerCase();
+
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'day-bubble';
+                const current = state[s.roll_no][d] || "none";
+                btn.dataset.state = current;
+                btn.title = "Day " + d + ": " + current;
+                btn.addEventListener('click', function () {
+                    const stateIdx = STATES.indexOf(btn.dataset.state);
+                    const next = STATES[(stateIdx + 1) % STATES.length];
+                    btn.dataset.state = next;
+                    btn.title = "Day " + d + ": " + next;
+                    state[s.roll_no][d] = next;
+                });
+
+                dayCell.appendChild(btn);
+                grid.appendChild(dayCell);
+            }
+        });
+    }
+
+    renderGrid();
+
+    // "Mark all present (today)" — only ever touches today's column, and only
+    // students who are still unmarked ("none"). Anyone already set to
+    // present/absent/leave for today is left exactly as they are.
+    const markAllBtn = document.getElementById('markAllPresentBtn');
+    if (viewingCurrentMonth()) {
+        markAllBtn.style.display = "";
+    }
+
+    markAllBtn.addEventListener('click', function () {
+        if (!viewingCurrentMonth()) return;
+        const today = new Date().getDate();
+        students.forEach(function (s) {
+            const current = state[s.roll_no][today] || "none";
+            if (current === "none") {
+                state[s.roll_no][today] = "present";
+            }
+        });
+        renderGrid();
+    });
+
+    // Live search by name or roll no — hides every cell belonging to a non-matching
+    // student; CSS Grid auto-placement then closes the gap automatically.
+    document.getElementById('attendanceSearch').addEventListener('input', function (e) {
+        const q = e.target.value.trim().toLowerCase();
+        document.querySelectorAll('#attendanceGrid .acell[data-roll]').forEach(function (cell) {
+            const matches = cell.dataset.roll.includes(q) || cell.dataset.name.includes(q);
+            cell.classList.toggle('row-hidden', !matches);
+        });
+    });
+
+    // Pack all marked days into a hidden JSON field before submit, so the
+    // Flask route can parse it as {month, records: {roll_no: {day: status}}}.
+    document.getElementById('attendanceForm').addEventListener('submit', function () {
+        document.getElementById('attendanceDataInput').value = JSON.stringify({
+            month: monthInput.value,
+            records: state
+        });
+    });
+</script>
+{% endblock %}

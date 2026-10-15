@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block head %}
+<title>Delete Account | Smart Mentor Connect</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
+{% endblock %}
+{% block body %}
+<div class="account-page">
+    <div class="account-shell">
+        <div class="account-card account-form-card">
+            <h1>Delete Account</h1>
+            <p class="lead">This permanently deletes your administrator account and cannot be undone.</p>
+
+            <div class="account-warning">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span>You will be signed out immediately and will no longer be able to log in with this account.</span>
+            </div>
+
+            {% if error %}<div class="account-error">{{ error }}</div>{% endif %}
+
+            <form method="post" id="deleteAccountForm">
+                <div class="account-field">
+                    <label for="password">Confirm your password</label>
+                    <input id="password" name="password" type="password" required>
+                </div>
+                <div class="account-actions">
+                    <a class="account-btn secondary" href="{{ url_for('pages.profile') }}">Cancel</a>
+                    <button class="account-btn danger" type="submit">Delete my account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById("deleteAccountForm").addEventListener("submit", function (e) {
+    if (!confirm("Are you sure you want to permanently delete your account? This cannot be undone.")) {
+        e.preventDefault();
+    }
+});
+</script>
+{% endblock %}

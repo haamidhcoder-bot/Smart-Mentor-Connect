@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block head %}
+<title>Results Sent | Smart Mentor Connect</title>
+{% endblock %}
+
+{% block body %}
+<div class="container">
+    <div class="card" style="text-align:center; padding:60px 32px;">
+        <div class="success-icon">&#10003;</div>
+        <h2>Results sent successfully!</h2>
+        <p style="color: var(--text-muted);">
+            {% if sent_count and sent_count|int > 0 %}
+                Emails were sent to {{ sent_count }} parent(s){% if sub and exam %} for {{ sub }} — {{ exam }}{% endif %}.
+            {% else %}
+                No matching students were found to email for the selected subject and exam.
+            {% endif %}
+        </p>
+        <a href="/home" class="btn" style="margin-top: 12px; display:inline-block;">Back to Data</a>
+    </div>
+</div>
+
+<style>
+.success-icon {
+    width: 72px;
+    height: 72px;
+    line-height: 72px;
+    background: var(--success);
+    color: var(--white);
+    border-radius: 50%;
+    font-size: 36px;
+    margin: 0 auto 24px;
+}
+</style>
+{% endblock %}

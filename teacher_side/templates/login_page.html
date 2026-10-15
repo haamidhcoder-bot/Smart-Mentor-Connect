@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Page | Smart Mentor Connect</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/smart-mentor-connect.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/smart-mentor-connect.png') }}">
+    
+</head>
+<body>
+    <div class="login-wrapper">
+        <div class="login-box">
+          <h1 class="has-underline">Welcome Back</h1>
+          <p class="login-subtitle">Login to your account</p>
+          <form method="POST" id="loginForm">
+
+            <!-- Step 1: username only -->
+            <div id="step-username">
+                <input type="email" name="username" id="username" class="icon-email" placeholder="Email ID" required autofocus>
+                <button type="button" class="login-btn" id="continueBtn">Continue</button>
+            </div>
+
+            <!-- Step 2: revealed once username is entered; choose password or Face ID -->
+            <div id="step-credentials" style="display:none;">
+                <div class="login-options" style="justify-content:flex-start; gap:6px;">
+                    <span id="loginAsEmail" style="font-weight:600;"></span>
+                    <a href="#" id="changeUsernameLink">Change</a>
+                </div>
+
+                <div class="password-field">
+                    <input type="password" name="password" id="password" class="icon-password" placeholder="Password">
+                    <button type="button" class="password-toggle-btn" data-target="password" aria-label="Show password">
+                        <svg class="icon-eye" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                        <svg class="icon-eye-off" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.8 21.8 0 0 1 5.06-6.06M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a21.7 21.7 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                    </button>
+                </div>
+                <div class="login-options">
+                  <label><input type="checkbox" name="remember" value="remember"> Remember me</label>
+                  <a href="{{ url_for('pages.forgot_password') }}" id="forgotPasswordLink">Forgot Password?</a>
+                </div>
+                <button type="submit" class="login-btn">Login</button>
+                <video
+                id="camera"
+                autoplay
+                playsinline
+                style="position:absolute; left:-9999px; top:-9999px;">
+            </video>
+
+                <div class="login-divider" id="faceIdDivider" style="display:none;">or</div>
+
+                <!-- Capture face (shown only if this account has Face ID set up) -->
+
+                <button
+                    type="button"
+                    class="btn-secondary-outline"
+                    id="faceIdBtn"
+                    style="display:none;"
+                    onclick="capture()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v4M15 3h4a2 2 0 0 1 2 2v4M9 21H5a2 2 0 0 1-2-2v-4M15 21h4a2 2 0 0 0 2-2v-4M8 9v3a4 4 0 0 0 4 4h0a4 4 0 0 0 4-4V9"></path></svg>
+                    Login with Face ID
+                </button>
+            </div>
+
+          </form>
+          <canvas id="canvas" style="display:none;"></canvas>
+
+          <div id="faceScanOverlay" class="face-scan-overlay" style="display:none;">
+              <div class="face-scan-frame">
+                  <span class="face-scan-corner tl"></span>
+                  <span class="face-scan-corner tr"></span>
+                  <span class="face-scan-corner bl"></span>
+                  <span class="face-scan-corner br"></span>
+                  <img
+                      src="{{ url_for('static', filename='images/face-id-scan.png') }}"
+                      alt="Scanning face"
+                      class="face-scan-icon">
+                  <div class="face-scan-line"></div>
+              </div>
+              <p id="faceScanStatus">Scanning...</p>
+          </div>
+
+          <div class="register-line"><br>
+          <a href="{{ url_for('pages.support') }}">Support</a></div>
+        </div>
+      </div>
+
+    <style>
+        .face-scan-overlay {
+            position: fixed;
+            inset: 0;
+            background:linear-gradient(160deg, rgba(11, 61, 102, 0.45) 0%, rgba(21, 101, 166, 0.35) 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .face-scan-frame {
+            position: relative;
+            width: 170px;
+            height: 170px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .face-scan-icon {
+            width: 110px;
+            height: 110px;
+            animation: faceScanPulse 1.1s ease-in-out infinite;
+        }
+
+        @keyframes faceScanPulse {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.1); opacity: 1; }
+        }
+
+        .face-scan-corner {
+            position: absolute;
+            width: 26px;
+            height: 26px;
+            border: 3px solid #fff;
+        }
+        .face-scan-corner.tl { top: 0; left: 0; border-right: 0; border-bottom: 0; border-radius: 8px 0 0 0; }
+        .face-scan-corner.tr { top: 0; right: 0; border-left: 0; border-bottom: 0; border-radius: 0 8px 0 0; }
+        .face-scan-corner.bl { bottom: 0; left: 0; border-right: 0; border-top: 0; border-radius: 0 0 0 8px; }
+        .face-scan-corner.br { bottom: 0; right: 0; border-left: 0; border-top: 0; border-radius: 0 0 8px 0; }
+
+        .face-scan-line {
+            position: absolute;
+            left: 8px;
+            right: 8px;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 0 8px 1px rgba(255, 255, 255, 0.8);
+            animation: faceScanSweep 1.6s ease-in-out infinite;
+        }
+
+        @keyframes faceScanSweep {
+            0% { top: 8px; opacity: 0; }
+            15% { opacity: 1; }
+            85% { opacity: 1; }
+            100% { top: 162px; opacity: 0; }
+        }
+
+        .face-scan-overlay p {
+            margin-top: 18px;
+            font-size: 15px;
+            font-weight: 500;
+            color: #1a73e8;
+            letter-spacing: 0.4px;
+        }
+    </style>
+
+    <script src="{{ url_for('static', filename='js/face-capture.js') }}"></script>
+    <script>
+        const video = document.getElementById("camera");
+        const canvas = document.getElementById("canvas");
+        const faceScanOverlay = document.getElementById("faceScanOverlay");
+        const faceScanStatus = document.getElementById("faceScanStatus");
+
+        /*
+            =====================================
+            STEP 1 -> STEP 2: username first
+            =====================================
+        */
+
+        const usernameInput = document.getElementById("username");
+        const stepUsername = document.getElementById("step-username");
+        const stepCredentials = document.getElementById("step-credentials");
+        const continueBtn = document.getElementById("continueBtn");
+        const changeUsernameLink = document.getElementById("changeUsernameLink");
+        const loginAsEmail = document.getElementById("loginAsEmail");
+        const passwordInput = document.getElementById("password");
+        const faceIdDivider = document.getElementById("faceIdDivider");
+        const faceIdBtn = document.getElementById("faceIdBtn");
+        const forgotPasswordLink = document.getElementById("forgotPasswordLink");
+        const forgotPasswordBaseHref = forgotPasswordLink.getAttribute("href");
+
+        async function goToCredentialsStep() {
+            if (!usernameInput.reportValidity()) {
+                return;
+            }
+
+            loginAsEmail.textContent = usernameInput.value;
+
+            // Carry the email the person already typed through to the
+            // "Forgot Password?" page so it isn't asked for twice.
+            forgotPasswordLink.href = forgotPasswordBaseHref + "?email=" + encodeURIComponent(usernameInput.value);
+
+            // Only offer Face ID as an option once we know this account
+            // actually has one set up - otherwise it's a button that's
+            // guaranteed to fail.
+            continueBtn.disabled = true;
+            continueBtn.textContent = "Checking...";
+            faceIdDivider.style.display = "none";
+            faceIdBtn.style.display = "none";
+
+            try {
+                const response = await fetch(
+                    "{{ url_for('auth.has_face_id') }}",
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                        body: "username=" + encodeURIComponent(usernameInput.value)
+                    }
+                );
+                const data = await response.json();
+                if (data.has_face_id) {
+                    faceIdDivider.style.display = "block";
+                    faceIdBtn.style.display = "inline-flex";
+                }
+            } catch (error) {
+                console.log("Could not check Face ID availability:", error);
+            }
+
+            continueBtn.disabled = false;
+            continueBtn.textContent = "Continue";
+
+            stepUsername.style.display = "none";
+            stepCredentials.style.display = "block";
+            passwordInput.setAttribute("required", "required");
+            passwordInput.focus();
+        }
+
+        function goToUsernameStep() {
+            stepCredentials.style.display = "none";
+            stepUsername.style.display = "block";
+            passwordInput.removeAttribute("required");
+            passwordInput.value = "";
+            faceIdDivider.style.display = "none";
+            faceIdBtn.style.display = "none";
+            forgotPasswordLink.href = forgotPasswordBaseHref;
+            usernameInput.focus();
+        }
+
+        continueBtn.addEventListener("click", goToCredentialsStep);
+
+        /*
+            =====================================
+            Returning here after a failed Face ID
+            attempt: skip straight to the password
+            step instead of asking for the email
+            again.
+            =====================================
+        */
+        (function resumeAtPasswordStepIfNeeded() {
+            const params = new URLSearchParams(window.location.search);
+            const email = params.get("email");
+            if (email) {
+                usernameInput.value = email;
+                goToCredentialsStep();
+            }
+        })();
+
+        usernameInput.addEventListener("keydown", function (e) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                goToCredentialsStep();
+            }
+        });
+
+        changeUsernameLink.addEventListener("click", function (e) {
+            e.preventDefault();
+            goToUsernameStep();
+        });
+
+        /*
+            =====================================
+            CAPTURE FACE + LOGIN
+            =====================================
+        */
+
+        async function capture() {
+
+            faceScanStatus.textContent = "Starting camera...";
+            faceScanOverlay.style.display = "flex";
+
+            try {
+
+                const stream =
+                    await navigator.mediaDevices.getUserMedia({
+                        video: true
+                    });
+
+                video.srcObject = stream;
+
+                video.onloadedmetadata = async () => {
+
+                    faceScanStatus.textContent = "Scanning...";
+
+                    // Grabs the frame, flashing the screen white first
+                    // if the room looks dark, for a clearer capture.
+                    const blob = await captureFaceFrame(video, canvas);
+
+                    console.log(
+                        "Face captured successfully"
+                    );
+
+                    /*
+                        Stop camera
+                    */
+
+                    stream
+                        .getTracks()
+                        .forEach(track => {
+                            track.stop();
+                        });
+
+                    faceScanStatus.textContent = "Verifying...";
+
+                    /*
+                        Send captured face to Flask
+                        for matching against stored
+                        face_id
+                    */
+
+                    const formData = new FormData();
+
+                    formData.append(
+                        "face",
+                        blob,
+                        "face.jpg"
+                    );
+
+                    formData.append(
+                        "username",
+                        usernameInput.value
+                    );
+
+                    const response =
+                        await fetch(
+                            "{{ url_for('auth.login_face') }}",
+                            {
+                                method: "POST",
+                                body: formData
+                            }
+                        );
+
+                    const result =
+                        await response.text();
+
+                    document.open();
+
+                    document.write(result);
+
+                    document.close();
+
+                };
+
+            }
+
+            catch (error) {
+
+                console.log(
+                    "Camera access denied:",
+                    error
+                );
+
+                faceScanOverlay.style.display = "none";
+
+            }
+
+        }
+
+        document.querySelectorAll('.password-toggle-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const input = document.getElementById(btn.dataset.target);
+                const eyeIcon = btn.querySelector('.icon-eye');
+                const eyeOffIcon = btn.querySelector('.icon-eye-off');
+                const isHidden = input.type === 'password';
+
+                input.type = isHidden ? 'text' : 'password';
+                eyeIcon.style.display = isHidden ? 'none' : 'block';
+                eyeOffIcon.style.display = isHidden ? 'block' : 'none';
+                btn.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+            });
+        });
+    </script>
+</body>
+</html>

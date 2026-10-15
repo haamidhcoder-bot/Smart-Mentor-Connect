@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block head %}
+<title>Profile Details | Smart Mentor Connect</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
+{% endblock %}
+{% block body %}
+<div class="account-page">
+    <div class="account-shell">
+        <div class="account-card account-form-card">
+            <h1>Profile Details</h1>
+            <p class="lead">Update the name displayed across your account.</p>
+
+            {% if error %}<div class="account-error">{{ error }}</div>{% endif %}
+
+            <form method="post">
+                <div class="account-field">
+                    <label for="name">Name</label>
+                    <input id="name" name="name" type="text" maxlength="100"
+                           value="{{ account.name or '' }}" placeholder="Enter your name" required>
+                </div>
+
+                <div class="account-field">
+                    <label for="email">Email</label>
+                    <input id="email" class="account-readonly" type="email" value="{{ account.Gmail }}" readonly>
+                </div>
+
+                <div class="account-field">
+                    <label>Role</label>
+                    <input class="account-readonly" type="text" value="{{ role }}" readonly>
+                </div>
+
+                <div class="account-field">
+                    <label>Class Teacher</label>
+                    <input class="account-readonly" type="text"
+                           value="{% if account.class_teacher and account.class_teacher_sec %}{{ account.class_teacher }} - {{ account.class_teacher_sec }}{% else %}Not assigned{% endif %}"
+                           readonly>
+                </div>
+
+                <div class="account-actions">
+                    <a class="account-btn secondary" href="{{ url_for('pages.profile') }}">Cancel</a>
+                    <button class="account-btn" type="submit">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

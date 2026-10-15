@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block head %}
+<title>{{ title }}</title>
+{% endblock %}
+
+{% block body %}
+<div class="container">
+  <div class="card graph-wrap">
+    <h2>{{ title }}</h2>
+    {% if graph %}
+    <img src="data:image/png;base64,{{ graph }}" alt="{{ title }}">
+    {% else %}
+    <h4>No graph data available.</h4>
+    {% endif %}
+    <p style="margin-top:18px;"><a class="link-btn" href="{{ back }}"><i class="fa-solid fa-arrow-left"></i> Back to home</a></p>
+  </div>
+</div>
+{% endblock %}

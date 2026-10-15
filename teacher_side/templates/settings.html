@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block head %}
+<title>Settings | Smart Mentor Connect</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
+{% endblock %}
+{% block body %}
+<div class="account-page">
+    <div class="account-shell">
+        <div class="account-card account-form-card">
+            <h1>Settings</h1>
+            <p class="lead">Manage your account preferences and security.</p>
+
+            {% if request.args.get('password_changed') %}<div class="account-success">Password changed successfully.</div>{% endif %}
+            {% if request.args.get('face_updated') %}<div class="account-success">Face ID updated successfully.</div>{% endif %}
+
+            <div class="account-settings-list">
+                <div class="account-setting-row">
+                    <div>
+                        <div class="setting-title">Dark mode</div>
+                        <div class="setting-description">Use a darker color scheme throughout the site.</div>
+                    </div>
+                    <label class="theme-switch" aria-label="Toggle dark mode">
+                        <input type="checkbox" id="darkModeToggle">
+                        <span class="theme-slider"></span>
+                    </label>
+                </div>
+
+                <a class="account-setting-row" href="{{ url_for('pages.change_password') }}">
+                    <div>
+                        <div class="setting-title">Change password</div>
+                        <div class="setting-description">Update the password used to sign in.</div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right account-chevron"></i>
+                </a>
+
+                <a class="account-setting-row" href="{{ url_for('pages.face_id') }}">
+                    <div>
+                        <div class="setting-title">Face ID</div>
+                        <div class="setting-description">
+                            {% if face_enabled %}Face ID is configured. You can update it here.{% else %}Set up Face ID for faster sign-in.{% endif %}
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right account-chevron"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    const toggle = document.getElementById("darkModeToggle");
+    const enabled = localStorage.getItem("spa-dark-mode") === "true";
+    toggle.checked = enabled;
+
+    toggle.addEventListener("change", function () {
+        const isDark = this.checked;
+        localStorage.setItem("spa-dark-mode", String(isDark));
+        document.documentElement.classList.toggle("dark-mode", isDark);
+        document.body.classList.toggle("dark-mode", isDark);
+    });
+})();
+</script>
+{% endblock %}

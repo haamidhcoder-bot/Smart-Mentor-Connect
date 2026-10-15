@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='student.css') }}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/smart-mentor-connect.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/smart-mentor-connect.png') }}">
+    <script>
+        (function () {
+            var dark = localStorage.getItem("spa-dark-mode") === "true";
+            document.documentElement.classList.toggle("dark-mode", dark);
+        })();
+    </script>
+    <link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <style>
+        nav.dock-nav {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: #1f1213;
+            padding: 12px 32px;
+            border-radius: 46px;
+            list-style: none;
+        }
+
+        nav.dock-nav .dock-item {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            color: #b2999b;
+            text-decoration: none;
+            transition: transform .25s ease, background-color .25s ease,
+                        color .25s ease, box-shadow .25s ease;
+        }
+
+        nav.dock-nav .dock-item i {
+            font-size: 19px;
+            transition: font-size .25s ease;
+        }
+
+        nav.dock-nav .dock-label {
+            position: absolute;
+            top: 100%;
+            margin-top: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #ffffff;
+            white-space: nowrap;
+            opacity: 0;
+            transform: translateY(-4px);
+            transition: opacity .25s ease, transform .25s ease;
+            pointer-events: none;
+        }
+
+        nav.dock-nav .dock-item:hover,
+        nav.dock-nav .dock-item.active {
+            transform: translateY(-16px);
+            background: #aa111e;
+            color: #ffffff;
+            box-shadow: 0 10px 18px rgba(170, 17, 30, 0.45);
+        }
+
+        nav.dock-nav .dock-item:hover i,
+        nav.dock-nav .dock-item.active i {
+            font-size: 21px;
+        }
+
+        nav.dock-nav .dock-item:hover .dock-label,
+        nav.dock-nav .dock-item.active .dock-label {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        /* ---- Page transition loading overlay ---- */
+        .page-loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.97);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+        }
+        .page-loading-overlay.show {
+            display: flex;
+        }
+        .page-loading-overlay .spinner {
+            width: 56px;
+            height: 56px;
+            border: 6px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: pageLoadingSpin 0.9s linear infinite;
+        }
+        .page-loading-overlay p {
+            margin-top: 18px;
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--primary);
+            letter-spacing: 0.4px;
+        }
+        @keyframes pageLoadingSpin {
+            to { transform: rotate(360deg); }
+        }
+</style>
+    {%block head%}<!--jinga-->{%endblock%}
+</head>
+<body>
+    <script>document.body.classList.toggle("dark-mode", document.documentElement.classList.contains("dark-mode"));</script>
+    <div id="pageLoadingOverlay" class="page-loading-overlay">
+        <div class="spinner"></div>
+        <p id="pageLoadingText">Loading...</p>
+    </div>
+    <script>
+        function showPageLoadingOverlay(text) {
+            var overlay = document.getElementById("pageLoadingOverlay");
+            var label = document.getElementById("pageLoadingText");
+            if (text) label.textContent = text;
+            overlay.classList.add("show");
+        }
+    </script>
+    <div class="navbar topbar-mobile">
+        <div class="brand"><img src="{{ url_for('static', filename='images/smart-mentor-connect.png') }}" alt="" style="height:1.6em;width:1.6em;vertical-align:middle;margin-right:8px;border-radius:50%;">SMART MENTOR CONNECT</div>
+  
+        <nav class="dock-nav">
+            <a href="/home" class="dock-item {% if request.path=='/home' or request.path=='/graph' or request.path.startswith('/graph/') or request.path.startswith('/piegraph/') %}active{% endif %}">
+                <i class="fa-solid fa-house"></i>
+                <span class="dock-label">Home</span>
+            </a>
+  
+            <a href="/leaderboard" class="dock-item {% if request.path=='/leaderboard' %}active{% endif %}">
+                <i class="fa-solid fa-trophy"></i>
+                <span class="dock-label">Leaderboard</span>
+            </a>
+
+            <a href="/attendance" class="dock-item {% if request.path=='/attendance' %}active{% endif %}">
+                <i class="fa-solid fa-calendar-check"></i>
+                <span class="dock-label">Attendance</span>
+            </a>
+            
+            <a href="/about" class="dock-item {% if request.path=='/about' %}active{% endif %}">
+                <i class="fa-solid fa-circle-info"></i>
+                <span class="dock-label">About Us</span>
+            </a>
+            
+            <a href="/profile" class="dock-item {% if request.path=='/profile' %}active{% endif %}">
+                <i class="fa-solid fa-circle-user"></i>
+                <span class="dock-label">Profile</span>
+            </a>
+
+        </nav>
+    </div>
+
+
+
+    <div class="app-shell">
+        <aside class="sidebar">
+            <div class="sidebar-brand"><img src="{{ url_for('static', filename='images/smart-mentor-connect.png') }}" alt="" style="height:1.6em;width:1.6em;vertical-align:middle;margin-right:8px;border-radius:50%;">SMART MENTOR CONNECT</div>
+            <nav class="sidebar-nav">
+                <a href="/home" class="sidebar-item {% if request.path=='/home' or request.path=='/graph' or request.path.startswith('/graph/') or request.path.startswith('/piegraph/') %}active{% endif %}">
+                    <i class="fa-solid fa-house"></i>
+                    <span>Home</span>
+                </a>
+
+                <a href="/leaderboard" class="sidebar-item {% if request.path=='/leaderboard' %}active{% endif %}">
+                    <i class="fa-solid fa-trophy"></i>
+                    <span>Leaderboard</span>
+                </a>
+
+                <a href="/attendance" class="sidebar-item {% if request.path=='/attendance' %}active{% endif %}">
+                    <i class="fa-solid fa-calendar-check"></i>
+                    <span>Attendance</span>
+                </a>
+
+                <a href="/about" class="sidebar-item {% if request.path=='/about' %}active{% endif %}">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <span>About Us</span>
+                </a>
+
+                <a href="/profile" class="sidebar-item {% if request.path=='/profile' %}active{% endif %}">
+                    <i class="fa-solid fa-circle-user"></i>
+                    <span>Profile</span>
+                </a>
+            </nav>
+        </aside>
+
+        <div class="app-main">
+            {%block body%}{%endblock%}
+        </div>
+    </div>
+
+</body>
+</html>

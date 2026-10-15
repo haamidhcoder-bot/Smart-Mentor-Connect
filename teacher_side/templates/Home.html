@@ -1,0 +1,376 @@
+{% extends "base.html" %}
+
+{%block head%}
+<title>Home | Smart Mentor Connect</title>
+{%endblock%}
+
+{%block body%}
+{% if log %}
+<div id="loginModal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span>Code</span>
+      <span class="modal-close" onclick="closeLoginModal()">&times;</span>
+    </div>
+    <div class="modal-body">
+      Logged in through <strong>{{ user }}</strong>
+    </div>
+    <div class="modal-footer">
+      <button type="button" onclick="closeLoginModal()">OK</button>
+    </div>
+  </div>
+</div>
+<script>
+  function closeLoginModal() {
+    document.getElementById('loginModal').style.display = 'none';
+  }
+</script>
+<style>
+  .modal-overlay {
+    position: fixed; top:0; left:0; width:100%; height:100%;
+    background: rgba(0,0,0,0.4);
+    display: flex; align-items:center; justify-content:center;
+    z-index: 1000;
+  }
+  .modal-box {
+    background:#fff; border-radius:8px; width:340px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    font-family: inherit;
+  }
+  .modal-header {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:12px 16px;
+    background:#e7f0fa; border-radius:8px 8px 0 0; font-weight:600;
+    color:#0d3b66;
+  }
+  .modal-close { cursor:pointer; font-size:18px; line-height:1; }
+  .modal-close:hover { color:#c0392b; }
+  .modal-body { padding:22px 18px; color:#333; }
+  .modal-footer { text-align:right; padding:12px 16px; border-top:1px solid #eee; }
+  .modal-footer button {
+    background:#1565c0; color:#fff; border:none; padding:8px 20px;
+    border-radius:4px; cursor:pointer; font-weight:600;
+  }
+  .modal-footer button:hover { background:#0d47a1; }
+</style>
+{% endif %}
+<div id="sendResultsValidationModal" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span>Missing information</span>
+      <span class="modal-close" onclick="closeSendResultsValidationModal()">&times;</span>
+    </div>
+    <div class="modal-body">
+      Please select both a subject and an exam before sending results.
+    </div>
+    <div class="modal-footer">
+      <button type="button" onclick="closeSendResultsValidationModal()">OK</button>
+    </div>
+  </div>
+</div>
+<div id="sendResultsConfirmModal" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span>Confirm send</span>
+      <span class="modal-close" onclick="closeSendResultsConfirmModal()">&times;</span>
+    </div>
+    <div class="modal-body" id="sendResultsConfirmBody">
+      Are you sure you want to send results to parents?
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="modal-cancel-btn" onclick="closeSendResultsConfirmModal()">Cancel</button>
+      <button type="button" id="sendResultsConfirmBtn">Yes, send</button>
+    </div>
+  </div>
+</div>
+<script>
+  function closeSendResultsValidationModal() {
+    document.getElementById('sendResultsValidationModal').style.display = 'none';
+  }
+  function closeSendResultsConfirmModal() {
+    document.getElementById('sendResultsConfirmModal').style.display = 'none';
+  }
+</script>
+<style>
+  .modal-footer .modal-cancel-btn {
+    background:#e0e0e0; color:#333; margin-right:8px;
+  }
+  .modal-footer .modal-cancel-btn:hover { background:#c7c7c7; }
+</style>
+<style>
+  .modal-overlay {
+    position: fixed; top:0; left:0; width:100%; height:100%;
+    background: rgba(0,0,0,0.4);
+    display: flex; align-items:center; justify-content:center;
+    z-index: 1000;
+  }
+  .modal-box {
+    background:#fff; border-radius:8px; width:340px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    font-family: inherit;
+  }
+  .modal-header {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:12px 16px;
+    background:#e7f0fa; border-radius:8px 8px 0 0; font-weight:600;
+    color:#0d3b66;
+  }
+  .modal-close { cursor:pointer; font-size:18px; line-height:1; }
+  .modal-close:hover { color:#c0392b; }
+  .modal-body { padding:22px 18px; color:#333; }
+  .modal-footer { text-align:right; padding:12px 16px; border-top:1px solid #eee; }
+  .modal-footer button {
+    background:#1565c0; color:#fff; border:none; padding:8px 20px;
+    border-radius:4px; cursor:pointer; font-weight:600;
+  }
+  .modal-footer button:hover { background:#0d47a1; }
+</style>
+<div class="container">
+    <form action="/show_results" method="POST">
+      <div class="card">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+              <h2 style="margin-bottom:0;">
+                  {% if class_value %}Class {{ class_value }}{% if sec %} - Section {{ sec }}{% endif %}{% endif %}
+            </h2>
+        </div>
+
+        <div class="filter-bar">
+
+        {% if class_value and class_value >= 10 %}
+
+        <div class="field">
+            <label for="sub2">Subject</label>
+            <select name="subject12" id="sub2">
+                <option value="">Select Subject</option>
+                <option value="English" {% if sub == "English" %}selected{% endif %}>English</option>
+                <option value="Maths" {% if sub == "Maths" %}selected{% endif %}>Maths</option>
+                <option value="Physics" {% if sub == "Physics" %}selected{% endif %}>Physics</option>
+                <option value="Chemistry" {% if sub == "Chemistry" %}selected{% endif %}>Chemistry</option>
+                <option value="Biology" {% if sub == "Biology" %}selected{% endif %}>Biology</option>
+                <option value="All" {% if sub == "All" %}selected{% endif %}>All Subjects</option>
+            </select>
+        </div>
+
+        {% else %}
+        <div class="field">
+            <label for="sub1">Subject</label>
+            <select name="subject10" id="sub1">
+                <option value="">Select Subject</option>
+                <option value="English" {% if sub == "English" %}selected{% endif %}>English</option>
+                <option value="Maths" {% if sub == "Maths" %}selected{% endif %}>Maths</option>
+                <option value="Social" {% if sub == "Social" %}selected{% endif %}>Social</option>
+                <option value="Science" {% if sub == "Science" %}selected{% endif %}>Science</option>
+                <option value="Tamil" {% if sub == "Tamil" %}selected{% endif %}>Tamil</option>
+                <option value="All" {% if sub == "All" %}selected{% endif %}>All Subjects</option>
+            </select>
+        </div>
+
+
+        {% endif %}
+        <div class="field">
+            <label for="exam">Exam</label>
+            <select name="exam" id="exam" >
+                <option value="">Select Exam</option>
+                <option value="Unit Test 1" {% if exam == "Unit Test 1" %}selected{% endif %}>Unit Test 1</option>
+                <option value="Unit Test 2" {% if exam == "Unit Test 2" %}selected{% endif %}>Unit Test 2</option>
+                <option value="Quarterly Exam" {% if exam == "Quarterly Exam" %}selected{% endif %}>Quarterly Exam</option>
+                <option value="Half Yearly Exam" {% if exam == "Half Yearly Exam" %}selected{% endif %}>Half Yearly Exam</option>
+                <option value="Annual Exam" {% if exam == "Annual Exam" %}selected{% endif %}>Annual Exam</option>
+            </select>
+        </div>
+
+        <div class="field" style="flex: 0 0 auto;">
+            <button type="submit" style="margin-top:0;">
+                Show results
+            </button>
+        </div>
+        <div class="field" style="flex: 0 0 auto;">
+            <button type="button" id="sendResultsBtn">
+                Send Results
+            </button>
+        </div>
+
+        </div>
+
+        {% if not class_value or not sec%}
+        <h4>Enter the required details.</h4>
+        {%elif not students%}
+        <h4>No students data available.</h4>
+        {% elif sub == "All" %}
+        <h4>All subjects &mdash; {{ exam }}</h4>
+        <div class="table-toolbar">
+            <input type="text" id="searchAll" class="table-search" placeholder="Search by name, roll no, marks, or result" oninput="filterTable('tableAll','searchAll')">
+            <div class="sort-controls">
+                <select id="sortKeyAll">
+                    <option value="roll">Sort by roll no</option>
+                    <option value="marks">Sort by marks</option>
+                </select>
+                <button type="button" class="sort-btn" id="sortBtnAll" onclick="sortTable('tableAll','sortKeyAll','sortBtnAll')">
+                    <svg class="sort-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
+                    Sort
+                </button>
+            </div>
+        </div>
+        <table id="tableAll">
+            <thead>
+                <tr>
+                    <th>Roll no</th>
+                    <th>Student name</th>
+                    <th>Marks</th>
+                    <th>Percentage</th>
+                    <th>Result</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stu in students %}
+                <tr data-roll="{{ stu.roll_no }}" data-marks="{{ total_marks.get(stu.roll_no, 0) }}" data-name="{{ stu.student_name|lower }}" data-result="{% if total_marks.get(stu.roll_no, 0) <= 150 %}fail{% else %}pass{% endif %}">
+                    <td data-label="Roll no" class="{% if total_marks.get(stu.roll_no, 0) <= 150 and total_marks.get(stu.roll_no, 0)!=0 %}fail{%elif total_marks.get(stu.roll_no, 0)==0 %}value{% endif %}">{{ stu.roll_no }}</td>
+                    <td data-label="Student name" class="{% if total_marks.get(stu.roll_no, 0) <= 150 and total_marks.get(stu.roll_no, 0)!=0 %}fail{%elif total_marks.get(stu.roll_no, 0)==0 %}value{% endif %}">{{ stu.student_name }}</td>
+                    <td data-label="Marks" class="{% if total_marks.get(stu.roll_no, 0) <= 150 and total_marks.get(stu.roll_no, 0)!=0 %}fail{%elif total_marks.get(stu.roll_no, 0)==0 %}value{% endif %}">{{ total_marks.get(stu.roll_no, 0) }}</td>
+                    <td  class="{% if total_marks.get(stu.roll_no, 0) <= 150 and total_marks.get(stu.roll_no, 0)!=0 %}fail{%elif total_marks.get(stu.roll_no, 0)==0 %}value{% endif %}">{{ "%.2f"|format((total_marks.get(stu.roll_no, 0)/500)*100) }}</td>
+                    <td class="{% if total_marks.get(stu.roll_no, 0) <= 150 and total_marks.get(stu.roll_no, 0)!=0 %}fail{%elif total_marks.get(stu.roll_no, 0)==0 %}value{% endif %}">{% if total_marks.get(stu.roll_no, 0) <= 150 and total_marks.get(stu.roll_no, 0)!=0 %}Fail{%elif total_marks.get(stu.roll_no, 0)==0 %}Null{%else%}Pass{% endif %}</td>
+                    <td data-label="Actions" class="actions">
+                        <a href="/piegraph/{{ stu.roll_no }}/{{ exam_id }}" onclick="showPageLoadingOverlay('Loading graph...')">Graph analysis</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <h4 style="color:rgb(0, 55, 255);">Null - Add marks for all the subjects to see data</h4>
+        {% elif sub and exam %}
+        <h4>{{ sub }} &mdash; {{ exam }}</h4>
+        <div class="table-toolbar">
+            <input type="text" id="searchSub" class="table-search" placeholder="Search by name, roll no, marks, or result" oninput="filterTable('tableSub','searchSub')">
+            <div class="sort-controls">
+                <select id="sortKeySub">
+                    <option value="roll">Sort by roll no</option>
+                    <option value="marks">Sort by marks</option>
+                </select>
+                <button type="button" class="sort-btn" id="sortBtnSub" onclick="sortTable('tableSub','sortKeySub','sortBtnSub')">
+                    <svg class="sort-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
+                    Sort
+                </button>
+            </div>
+        </div>
+        <table id="tableSub">
+            <thead>
+                <tr>
+                    <th>Roll no</th>
+                    <th>Student name</th>
+                    <th>Marks</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stu in students %}
+                    {% for mark in results %}
+                    {% if mark.roll_no == stu.roll_no %}
+                    <tr data-roll="{{ stu.roll_no }}" data-marks="{{ mark.marks }}" data-name="{{ stu.student_name|lower }}" data-result="{% if mark.marks <= 30 and mark.marks!=0 %}fail{%elif mark.marks==0 %}value{% else %}pass{% endif %}">
+                        <td data-label="Roll no" class="{% if mark.marks <= 30 and mark.marks!=0 %}fail{%elif mark.marks==0 %}value{% endif %}">{{ stu.roll_no }}</td>
+                        <td data-label="Student name" class="{% if mark.marks <= 30 and mark.marks!=0 %}fail{%elif mark.marks==0 %}value{% endif %}">{{ stu.student_name }}</td>
+                        <td data-label="Marks" class="{% if mark.marks <= 30 and mark.marks!=0 %}fail{%elif mark.marks==0 %}value{% endif %}">{{ mark.marks }}</td>
+                        <td data-label="Actions" class="actions">
+                            <a href="/graph/{{ mark.roll_no }}/{{ mark.subject }}/{{ mark.exam_id }}" onclick="showPageLoadingOverlay('Loading graph...')">Graph analysis</a>
+                            <a href="/edit/{{ mark.roll_no }}/{{ mark.subject }}/{{ mark.exam_id }}">Edit</a>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <h4>There are no data to show</h4>
+        {% endif %}
+      </div>
+    </form>
+    </div>
+
+    <script>
+        function filterTable(tableId, searchId) {
+            var table = document.getElementById(tableId);
+            var search = document.getElementById(searchId);
+            if (!table || !search) return;
+
+            var query = search.value.trim().toLowerCase();
+            var rows = table.querySelectorAll("tbody tr");
+
+            rows.forEach(function (row) {
+                var haystack = [
+                    row.getAttribute("data-name") || "",
+                    row.getAttribute("data-roll") || "",
+                    row.getAttribute("data-marks") || "",
+                    row.getAttribute("data-result") || ""
+                ].join(" ");
+
+                row.style.display = haystack.indexOf(query) !== -1 ? "" : "none";
+            });
+        }
+
+        function sortTable(tableId, selectId, buttonId) {
+            var table = document.getElementById(tableId);
+            var select = document.getElementById(selectId);
+            var button = document.getElementById(buttonId);
+            if (!table || !select || !button) return;
+
+            var tbody = table.querySelector("tbody");
+            var rows = Array.prototype.slice.call(tbody.querySelectorAll("tr"));
+            var key = select.value;
+
+            table.sortState = table.sortState || {};
+            var ascending = table.sortState[key] !== "asc";
+            table.sortState[key] = ascending ? "asc" : "desc";
+
+            rows.sort(function (a, b) {
+                var av = parseFloat(a.getAttribute("data-" + key)) || 0;
+                var bv = parseFloat(b.getAttribute("data-" + key)) || 0;
+                return ascending ? av - bv : bv - av;
+            });
+
+            rows.forEach(function (row) {
+                tbody.appendChild(row);
+            });
+
+            var icon = button.querySelector(".sort-icon");
+            if (icon) {
+                icon.style.transform = ascending ? "rotate(0deg)" : "rotate(180deg)";
+            }
+            button.setAttribute("aria-label", ascending ? "Sorted ascending" : "Sorted descending");
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            var sendBtn = document.getElementById("sendResultsBtn");
+            if (!sendBtn) return;
+
+            sendBtn.addEventListener("click", function () {
+                // Whichever field set is present in the DOM (class <=10 vs >10)
+                var subEl = document.getElementById("sub1") || document.getElementById("sub2");
+                // Note: both class<=10 and class>10 exam <select> elements use id="exam",
+                // so this always matches on the first getElementById call; "exam2" is unused.
+                var examEl = document.getElementById("exam") || document.getElementById("exam2");
+
+                var sub = subEl ? subEl.value : "";
+                var exam = examEl ? examEl.value : "";
+
+                if (!sub || !exam) {
+                    document.getElementById("sendResultsValidationModal").style.display = "flex";
+                    return;
+                }
+
+                // Show a confirmation modal instead of sending right away.
+                document.getElementById("sendResultsConfirmBody").textContent =
+                    "Send " + sub + " results for " + exam + " to parents?";
+                document.getElementById("sendResultsConfirmModal").style.display = "flex";
+
+                var confirmBtn = document.getElementById("sendResultsConfirmBtn");
+                // Avoid stacking duplicate listeners if the user opens the modal more than once.
+                confirmBtn.onclick = function () {
+                    document.getElementById("sendResultsConfirmModal").style.display = "none";
+                    var params = new URLSearchParams({ sub: sub, exam: exam });
+                    window.location.href = "/loading?" + params.toString();
+                };
+            });
+        });
+    </script>
+{%endblock%}
