@@ -1,0 +1,68 @@
+# Smart Mentor Connect - FREE web services, MySQL hosted elsewhere.
+# Put DATABASE_URL in the 'smart-mentor-secrets' group (see DEPLOY_RENDER.md).
+# Use this file by choosing it as the Blueprint file path when creating the Blueprint,
+# or copy it over render.yaml.
+
+services:
+  - type: web
+    name: smart-mentor-management
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --chdir management_side -w 1 --threads 4 --timeout 120 -b 0.0.0.0:$PORT wsgi:app
+    healthCheckPath: /healthz
+    envVars:
+      - fromGroup: smart-mentor-secrets
+      - key: MANAGEMENT_SECRET_KEY
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: TRUST_PROXY
+        value: "1"
+      - key: SESSION_COOKIE_SECURE
+        value: "1"
+      - key: FLASK_DEBUG
+        value: "0"
+
+  - type: web
+    name: smart-mentor-teacher
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --chdir teacher_side -w 1 --threads 4 --timeout 120 -b 0.0.0.0:$PORT wsgi:app
+    healthCheckPath: /healthz
+    envVars:
+      - fromGroup: smart-mentor-secrets
+      - key: TEACHER_SECRET_KEY
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: TRUST_PROXY
+        value: "1"
+      - key: SESSION_COOKIE_SECURE
+        value: "1"
+      - key: FLASK_DEBUG
+        value: "0"
+
+  - type: web
+    name: smart-mentor-student
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --chdir student_side -w 1 --threads 4 --timeout 120 -b 0.0.0.0:$PORT wsgi:app
+    healthCheckPath: /healthz
+    envVars:
+      - fromGroup: smart-mentor-secrets
+      - key: STUDENT_SECRET_KEY
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: TRUST_PROXY
+        value: "1"
+      - key: SESSION_COOKIE_SECURE
+        value: "1"
+      - key: FLASK_DEBUG
+        value: "0"
