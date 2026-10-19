@@ -218,6 +218,18 @@ Teacher side:     http://127.0.0.1:8000
 Student side:     http://127.0.0.1:9000
 ```
 
+### Deploying
+
+Each side has a `wsgi.py`. Example (run one per side, behind nginx/HTTPS, with `SESSION_COOKIE_SECURE=1`):
+
+```bash
+gunicorn --chdir management_side -w 1 --threads 4 -b 127.0.0.1:5000 wsgi:app
+gunicorn --chdir teacher_side    -w 1 --threads 4 -b 127.0.0.1:8000 wsgi:app
+gunicorn --chdir student_side    -w 1 --threads 4 -b 127.0.0.1:9000 wsgi:app
+```
+
+Keep `-w 1`: the e-mail progress state is held in memory. Add `gunicorn` to your environment (`pip install gunicorn`).
+
 ## Testing
 
 Smart Mentor Connect includes a pytest suite (`tests/`) covering the shared decorators, teacher-side, management-side and student-side routes, grading and attendance rules, CSV import and promotion. It runs against isolated Flask apps (mocked, or a throw-away SQLite database), so it does not touch your real college databases, email account, Face ID files, or the AI API.
@@ -321,3 +333,7 @@ This project is licensed under the MIT License.
 **Haamidh Mohideen**
 
 GitHub: `https://github.com/haamidhcoder-bot`
+
+## Deployment
+
+See [DEPLOY_RENDER.md](DEPLOY_RENDER.md) for deploying all three sites on Render with `render.yaml`.
