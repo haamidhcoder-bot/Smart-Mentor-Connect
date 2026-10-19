@@ -298,6 +298,36 @@ Smart Mentor Connect includes an AI-assisted interface for interacting with stud
 
 The application supports email functionality for system-related communication, including OTP-based password resets, sending generated files, and notifications.
 
+## Screenshots
+
+### Login Page
+<img src="images/login 1.png" alt="Smart Mentor Connect Login Page" width="800">
+
+<img src="images/login 2.png" alt="Smart Mentor Connect Login Page" width="800">
+
+### Teacher Dashboard
+<img src="images/teacher-dashboard.png" alt="Smart Mentor Connect Teacher Dashboard" width="800">
+
+### Management Dashboard
+<img src="images/management-dashboard.png" alt="Smart Mentor Connect Management Dashboard" width="800">
+
+### Leaderboard
+<img src="images/leaderboard.png" alt="Smart Mentor Connect Leaderboard" width="800">
+
+## Attendance Management
+<img src="images/attendance-management.png" alt="Smart Mentor Connect Attendance Management" width="800">
+
+
+## Attendance Teacher
+<img src="images/attendance-teachers.png" alt="Smart Mentor Connect Attendance Teacher" width="800">
+
+
+## Teachers Data
+<img src="images/teachers-data.png" alt="Smart Mentor Connect Teachers data" width="800">
+
+## AI Assistance
+<img src="images/AI Assistance.png" alt="Smart Mentor Connect AI Assistance" width="800">
+
 ## Contributing
 
 Contributions are welcome.
@@ -333,3 +363,7 @@ This project is licensed under the MIT License.
 **Haamidh Mohideen**
 
 GitHub: `https://github.com/haamidhcoder-bot`
+
+## Deployment
+
+See [DEPLOY_RENDER.md](DEPLOY_RENDER.md) for deploying all three sites on Render with `render.yaml`.

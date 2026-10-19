@@ -100,6 +100,18 @@ def create_app(side, side_dir, register_blueprints):
     app.config["SESSION_COOKIE_NAME"] = f"smartmentorconnect_{side}_session"
     app.config["SQLALCHEMY_DATABASE_URI"] = settings.sqlalchemy_uri()
 
+    if settings.get("TRUST_PROXY", "0").lower() in ("1", "true", "yes", "on"):
+        # Behind Render's HTTPS proxy: trust X-Forwarded-* so request.is_secure,
+        # redirects and client IPs are correct.
+        from werkzeug.middleware.proxy_fix import ProxyFix
+
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+    @app.route("/healthz", endpoint="healthz")
+    def healthz():
+        """Cheap liveness probe for Render (does not touch the database)."""
+        return "ok", 200, {"Content-Type": "text/plain"}
+
     db.init_app(app)
 
     # The registry of colleges (each college's own database is created and

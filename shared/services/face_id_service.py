@@ -7,7 +7,9 @@ import numpy as np
 # Where captured face images are stored on disk. Teacher.face_id / Admin.face_id
 # store just the filename (short, fits in the existing String(200) column) -
 # not the image data itself.
-FACE_ID_DIR = os.path.join(
+# Override with FACE_ID_DIR (e.g. a Render persistent disk mount such as
+# /var/data/face_ids) so stored face photos survive redeploys.
+FACE_ID_DIR = os.environ.get("FACE_ID_DIR") or os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "face_ids"
 )
 os.makedirs(FACE_ID_DIR, exist_ok=True)
