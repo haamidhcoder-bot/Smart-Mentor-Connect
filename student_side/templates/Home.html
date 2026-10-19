@@ -1,7 +1,7 @@
 {% extends "base.html" %}
+{% block title %}Home{% endblock %}
 
 {% block head %}
-<title>Home | Smart Mentor Connect</title>
 {% endblock %}
 
 {% block body %}
@@ -9,7 +9,7 @@
   <div class="card">
     <div class="welcome-row">
       <h2>Hi, {{ student.student_name }}</h2>
-      <span class="chip">Class {{ student.student_class }} - {{ student.section }} &middot; Roll {{ student.roll_no }}</span>
+      <span class="chip">{{ student.department }} &middot; Year {{ student.year }}-{{ student.section }} &middot; Roll {{ student.roll_no }}</span>
     </div>
 
     <div class="stat-grid">
@@ -17,7 +17,13 @@
         <span class="stat-label">Attendance</span>
         {% if attendance_pct is not none %}
           <span class="stat-value">{{ attendance_pct }}%</span>
+          {% if attendance and attendance.shortage %}
+          <span class="stat-sub stat-warn">Shortage &ndash; below {{ attendance.required }}%. Attend the next {{ attendance.need }} classes to get back to {{ attendance.required }}%.</span>
+          {% elif attendance and attendance.can_miss is not none %}
+          <span class="stat-sub">{{ attendance_marked }} days recorded this year &middot; can still miss {{ attendance.can_miss }} and stay above {{ attendance.required }}%</span>
+          {% else %}
           <span class="stat-sub">{{ attendance_marked }} days recorded</span>
+          {% endif %}
         {% else %}
           <span class="stat-value">&ndash;</span><span class="stat-sub">Nothing recorded yet</span>
         {% endif %}
@@ -29,22 +35,29 @@
         <span class="stat-sub">{{ summary.percentage }}%</span>
       </div>
       <div class="stat-card">
-        <span class="stat-label">Subjects passed</span>
+        <span class="stat-label">Courses passed</span>
         <span class="stat-value">{{ summary.passed }} / {{ summary.count }}</span>
-        <span class="stat-sub">Pass mark is above 30</span>
+        <span class="stat-sub">Pass mark is {{ pass_mark }} out of 100</span>
       </div>
+      {% if summary.gpa is not none %}
+      <div class="stat-card">
+        <span class="stat-label">GPA (this exam)</span>
+        <span class="stat-value">{{ "%.2f"|format(summary.gpa) }}</span>
+        <span class="stat-sub">{% if summary.arrears %}{{ summary.arrears }} arrear(s){% else %}Credit-weighted, 10-point scale{% endif %}</span>
+      </div>
+      {% endif %}
       {% endif %}
       {% if rank %}
       <div class="stat-card">
-        <span class="stat-label">Class rank</span>
+        <span class="stat-label">Section rank</span>
         <span class="stat-value">#{{ rank[0] }}</span>
         <span class="stat-sub">of {{ rank[1] }} students</span>
       </div>
       {% elif summary and summary.count %}
       <div class="stat-card muted">
-        <span class="stat-label">Class rank</span>
+        <span class="stat-label">Section rank</span>
         <span class="stat-value">&ndash;</span>
-        <span class="stat-sub">Shown once all subjects have marks</span>
+        <span class="stat-sub">Shown once all courses have marks</span>
       </div>
       {% endif %}
     </div>
@@ -66,16 +79,18 @@
 
     {% if subjects %}
     <table>
-      <thead><tr><th>Subject</th><th>Marks</th><th>Score</th><th>Result</th><th>Progress</th></tr></thead>
+      <thead><tr><th>Course</th><th>Credits</th><th>Marks</th><th>Grade</th><th>Score</th><th>Result</th><th>Progress</th></tr></thead>
       <tbody>
         {% for s in subjects %}
         <tr>
-          <td data-label="Subject">{{ s.subject }}</td>
+          <td data-label="Course">{{ s.name }}{% if s.name != s.subject %} <small style="color:var(--text-muted);">({{ s.subject }})</small>{% endif %}</td>
+          <td data-label="Credits">{{ s.credits }}</td>
           <td data-label="Marks">{% if s.marks %}{{ s.marks }} / 100{% else %}&ndash;{% endif %}</td>
+          <td data-label="Grade">{{ s.grade }}</td>
           <td data-label="Score"><div class="mark-bar"><span style="width:{{ s.marks }}%"></span></div></td>
           <td data-label="Result">
             {% if s.status == 'Pass' %}<span class="badge pass">Pass</span>
-            {% elif s.status == 'Fail' %}<span class="badge fail">Fail</span>
+            {% elif s.status == 'Fail' %}<span class="badge fail">Arrear</span>
             {% else %}<span class="badge none">Not entered</span>{% endif %}
           </td>
           <td data-label="Progress">
@@ -88,7 +103,7 @@
     {% if summary.complete %}
     <p style="margin-top:18px;"><a class="link-btn" href="/piegraph/{{ exam_id }}" onclick="showPageLoadingOverlay('Loading graph...')"><i class="fa-solid fa-chart-pie"></i> Marks breakdown</a></p>
     {% else %}
-    <p class="hint">The marks breakdown chart appears once marks are entered for every subject.</p>
+    <p class="hint">The marks breakdown chart appears once marks are entered for every course.</p>
     {% endif %}
     {% else %}
     <h4>No marks have been added for you yet.</h4>

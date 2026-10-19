@@ -1,0 +1,52 @@
+/* Smart Mentor Connect — usability and responsive polish layer */
+:root { color-scheme: light; }
+html { scroll-behavior: smooth; }
+body { text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+*, *::before, *::after { box-sizing: border-box; }
+:focus-visible { outline: 3px solid #60a5fa; outline-offset: 3px; }
+button, input, select, textarea { font: inherit; }
+button, [type="button"], [type="submit"], [role="button"] { touch-action: manipulation; }
+button, input[type="submit"], a.button, .btn { transition: transform .16s ease, box-shadow .16s ease, background-color .16s ease; }
+button:hover, input[type="submit"]:hover, a.button:hover, .btn:hover { filter: brightness(1.035); }
+button:active, input[type="submit"]:active, a.button:active, .btn:active { transform: translateY(1px); }
+input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]), select, textarea {
+  max-width: 100%; min-height: 42px; border-radius: 10px; transition: border-color .18s ease, box-shadow .18s ease;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.14); }
+table { width: 100%; border-collapse: separate; border-spacing: 0; }
+table th { text-align: left; font-weight: 700; }
+table th, table td { padding: 12px 14px; vertical-align: middle; }
+table tbody tr { transition: background-color .15s ease; }
+table tbody tr:hover { background-color: rgba(100,116,139,.07); }
+img, svg, video, canvas { max-width: 100%; }
+.card, .stat-card, .dashboard-card, .content-card, .panel { min-width: 0; }
+/* Long datasets should remain usable on phones without crushing columns. */
+.table-container, .table-responsive, .table-wrapper, .data-table-wrapper { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* Keep controls comfortable on smaller screens and avoid hover-only navigation. */
+@media (max-width: 760px) {
+  body { overflow-x: hidden; }
+  main, .main-content, .content, .page-content { min-width: 0; max-width: 100%; }
+  .app-shell { min-width: 0; }
+  .chat-panel { right: 12px !important; left: 12px !important; width: auto !important; max-width: none; max-height: min(72vh, 620px); }
+  .chat-button { right: 16px !important; bottom: 20px !important; }
+  table th, table td { padding: 9px 10px; }
+  input, select, textarea { max-width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+
+
+/* Brand mark: use the transparent emblem asset, not the full poster artwork. */
+.smc-brand-icon {
+  display: inline-block; width: 34px; height: 34px; object-fit: contain;
+  flex: 0 0 34px; vertical-align: middle; margin: 0 9px 0 0;
+  border-radius: 0; background: transparent;
+}
+.navbar .brand, .sidebar-brand { display: flex; align-items: center; gap: 0; min-width: 0; }
+.navbar .brand { line-height: 1.2; }
+.sidebar-brand { overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .smc-brand-icon { width: 30px; height: 30px; flex-basis: 30px; margin-right: 7px; }
+  .navbar .brand { font-size: clamp(.9rem, 4vw, 1.25rem); }
+}

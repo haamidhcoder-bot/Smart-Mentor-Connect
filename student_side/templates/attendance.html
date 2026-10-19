@@ -1,7 +1,7 @@
 {% extends "base.html" %}
+{% block title %}Attendance{% endblock %}
 
 {% block head %}
-<title>Attendance | Smart Mentor Connect</title>
 {% endblock %}
 
 {% block body %}
@@ -23,8 +23,15 @@
       <div class="stat-card">
         <span class="stat-label">Overall</span>
         <span class="stat-value">{% if pct is not none %}{{ pct }}%{% else %}&ndash;{% endif %}</span>
-        <span class="stat-sub">{{ marked }} days recorded</span>
+        <span class="stat-sub">{{ marked }} days recorded this year</span>
       </div>
+      {% if status and status.pct is not none %}
+      <div class="stat-card {% if status.shortage %}muted{% endif %}">
+        <span class="stat-label">{% if status.shortage %}Attendance shortage{% else %}Attendance OK{% endif %}</span>
+        <span class="stat-value" style="{% if status.shortage %}color:#c0392b;{% endif %}">{% if status.shortage %}{{ status.need }}{% else %}{{ status.can_miss }}{% endif %}</span>
+        <span class="stat-sub">{% if status.shortage %}classes to attend to reach {{ status.required }}%{% else %}classes you can still miss and stay above {{ status.required }}%{% endif %}</span>
+      </div>
+      {% endif %}
       <div class="stat-card"><span class="stat-label">Present (month)</span><span class="stat-value">{{ counts.present }}</span></div>
       <div class="stat-card"><span class="stat-label">Absent (month)</span><span class="stat-value">{{ counts.absent }}</span></div>
       <div class="stat-card"><span class="stat-label">Leave (month)</span><span class="stat-value">{{ counts.leave }}</span></div>

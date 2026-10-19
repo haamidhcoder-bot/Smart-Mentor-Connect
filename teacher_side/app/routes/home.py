@@ -1,58 +1,66 @@
-from flask import Blueprint, render_template, request, session, url_for,redirect,current_app,jsonify
+from flask import Blueprint, render_template, request, session, url_for, redirect, current_app, jsonify
 from sqlalchemy import func
 
 from shared.extensions import db
 from shared.models import Student, Exam, Mark
-from shared.decorators import login_required, class_teacher_required
+from shared.decorators import login_required, advisor_required
 from shared.services.AI_service import ask_ai
+from shared.services.course_service import (
+    course_count,
+    courses_for,
+    exams_for_year,
+    semesters_for_year,
+)
 
 home_bp = Blueprint("home", __name__)
 
 
-def _teacher_class_context():
-    class_value = session.get("class_teacher")
-    sec = session.get("class_teacher_sec")
+def _advisor_group():
+    """(department, year, section) the logged-in teacher is class advisor of."""
+    dept = session.get("advisor_dept")
+    year = session.get("advisor_year")
+    sec = session.get("advisor_section")
 
-    if class_value is None or not sec:
-        return None, None
+    if not dept or year is None or not sec:
+        return None, None, None
 
-    return int(class_value), sec
+    return dept, int(year), sec
 
 
-def _load_results(class_value, sec, subject, exam_name):
+def _load_results(dept, year, sec, subject, exam_name):
     students = Student.query.filter(
-        Student.student_class == class_value,
+        Student.department == dept,
+        Student.year == year,
         Student.section == sec
-    ).all()
+    ).order_by(Student.roll_no).all()
 
     exam = Exam.query.filter(Exam.exam_name == exam_name).first() if exam_name else None
 
     results = []
     if exam is not None and subject and subject != "All":
-        # Every Mark row that already exists for this class/subject/exam.
+        # Every Mark row that already exists for this group/course/exam.
         existing = {
             m.roll_no: m
             for m in Mark.query.join(
                 Student, Student.roll_no == Mark.roll_no
             ).filter(
-                Mark.student_class == class_value,
+                Student.department == dept,
+                Student.year == year,
                 Student.section == sec,
                 Mark.exam_id == exam.exam_id,
                 Mark.subject == subject
             ).all()
         }
 
-        # Show every student in the class, not just the ones who already
-        # have a Mark row. Newly imported or just-promoted students have
-        # none yet, so without this they'd never appear here and the
-        # teacher would have no "Edit" link to add their first mark.
-        # These stand-in Mark objects are never added to the session -
-        # the real row gets created when the teacher actually edits it
+        # Show every student in the group, not just the ones who already
+        # have a Mark row, so a teacher always gets an "Edit" link to add a
+        # first mark. These stand-in Mark objects are never added to the
+        # session - the real row is created when the teacher edits it
         # (see marks.py's edit()).
         for stu in students:
             results.append(existing.get(stu.roll_no) or Mark(
                 roll_no=stu.roll_no,
-                student_class=class_value,
+                year=year,
                 exam_id=exam.exam_id,
                 subject=subject,
                 marks=0
@@ -63,100 +71,123 @@ def _load_results(class_value, sec, subject, exam_name):
 
 @home_bp.route("/home", endpoint="home", strict_slashes=False)
 @login_required
-@class_teacher_required
+@advisor_required
 def home():
-    class_value, sec = _teacher_class_context()
-    if class_value is None:
+    dept, year, sec = _advisor_group()
+    if dept is None:
         return render_template(
             "Error.html",
-            data="No class-teacher assignment found.",
+            data="No class-advisor assignment found.",
             location="/"
         )
 
     sub = session.get("subject", "")
     exa = session.get("exam", "")
 
-    students, exam, results = _load_results(
-        class_value, sec, sub, exa
+    students, exam, results = _load_results(dept, year, sec, sub, exa)
+
+    common = dict(
+        dept=dept,
+        year=year,
+        sec=sec,
+        courses=courses_for(dept, year),
+        exams=exams_for_year(year),
+        students=students,
+        sub=sub,
+        exam=exa,
     )
 
     if sub == "All" and exam is not None:
-        totals = (
-            db.session.query(
-                Mark.roll_no,
-                func.sum(Mark.marks).label("total")
-            )
-            .join(
-                Student,
-                Student.roll_no == Mark.roll_no
-            )
-            .filter(
-                Mark.student_class == class_value,
-                Student.section == sec,
-                Mark.exam_id == exam.exam_id
-            )
-            .group_by(Mark.roll_no)
-            .having(func.count(Mark.subject) == 5)
-            .having(func.min(Mark.marks) > 0)
-            .all()
-        )
+        course_total = course_count(dept, exam.semester)
 
-        total_marks = {row.roll_no: row.total for row in totals}
+        totals = []
+        if course_total:
+            totals = (
+                db.session.query(
+                    Mark.roll_no,
+                    func.sum(Mark.marks).label("total"),
+                    func.min(Mark.marks).label("lowest"),
+                )
+                .join(
+                    Student,
+                    Student.roll_no == Mark.roll_no
+                )
+                .filter(
+                    Student.department == dept,
+                    Student.year == year,
+                    Student.section == sec,
+                    Mark.exam_id == exam.exam_id
+                )
+                .group_by(Mark.roll_no)
+                .having(func.count(Mark.subject) == course_total)
+                .having(func.min(Mark.marks) > 0)
+                .all()
+            )
 
         return render_template(
             "Home.html",
-            class_value=class_value,
-            students=students,
-            total_marks=total_marks,
-            sub=sub,
-            exam=exa,
+            total_marks={row.roll_no: row.total for row in totals},
+            lowest_marks={row.roll_no: row.lowest for row in totals},
+            course_total=course_total,
             exam_id=exam.exam_id,
-            sec=sec
+            **common
         )
     current_app.logger.info(f"{session.get('username','')} has entered home")
 
-    return render_template(
-        "Home.html",
-        class_value=class_value,
-        students=students,
-        results=results,
-        sub=sub,
-        exam=exa,
-        sec=sec
-    )
+    return render_template("Home.html", results=results, **common)
 
 
 @home_bp.route("/show_results", methods=["POST"], endpoint="show_results")
 @login_required
-@class_teacher_required
+@advisor_required
 def show_results():
-    class_value, sec = _teacher_class_context()
+    dept, year, sec = _advisor_group()
 
-    if class_value is None:
+    if dept is None:
         return render_template(
             "Error.html",
-            data="No class-teacher assignment found.",
+            data="No class-advisor assignment found.",
             location="/home"
         )
 
-    sub = request.form.get("subject10", "") or request.form.get("subject12", "")
+    sub = request.form.get("subject", "")
     exa = request.form.get("exam", "")
 
     if not sub or not exa:
         return render_template(
             "Error.html",
-            data="Select the subject and exam.",
+            data="Select the course and exam.",
             location="/home"
         )
 
-    # The class and section are deliberately NOT read from the form.
-    # They always come from the logged-in teacher's assignment.
-    session["class_value"] = class_value
+    # The department, year and section are deliberately NOT read from the
+    # form. They always come from the logged-in teacher's assignment.
+    exam = Exam.query.filter(Exam.exam_name == exa).first()
+    if exam is None or exam.semester not in semesters_for_year(year):
+        return render_template(
+            "Error.html",
+            data="That exam is not available for your year.",
+            location="/home"
+        )
+
+    if sub != "All":
+        course = next((c for c in courses_for(dept, year) if c.code == sub), None)
+        if course is None or course.semester != exam.semester:
+            return render_template(
+                "Error.html",
+                data="That course does not belong to the selected exam's semester.",
+                location="/home"
+            )
+
+    session["dept"] = dept
+    session["year"] = year
     session["sec"] = sec
     session["subject"] = sub
     session["exam"] = exa
 
-    current_app.logger.info(f"{session.get('username','')} is seeing the details of {class_value}-{sec}")
+    current_app.logger.info(
+        f"{session.get('username','')} is seeing the details of {dept} {year}-{sec}"
+    )
     return redirect(url_for("home.home"))
 
 @home_bp.route("/chatbot", methods=["POST","GET"], endpoint="chatbot")

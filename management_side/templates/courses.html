@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Courses{% endblock %}
+
+{% block head %}
+{% endblock %}
+
+{% block body %}
+<div class="container">
+    <div class="card">
+        <div class="page-header">
+            <h2 style="margin-bottom:0;">Courses</h2>
+        </div>
+        <p style="color: var(--text-muted);">
+            Teachers choose from these courses when entering marks. A course with department
+            <strong>{{ common }}</strong> is shared by every department (for example Mathematics or English).
+            Credits are used for the grade point average.
+        </p>
+
+        <form method="GET" action="/courses" class="filter-bar">
+            <div class="field">
+                <label for="fdept">Department</label>
+                <select name="department" id="fdept">
+                    <option value="">All</option>
+                    {% for d in course_departments %}
+                    <option value="{{ d }}" {% if dept == d %}selected{% endif %}>{{ d }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="field">
+                <label for="fsem">Semester</label>
+                <select name="semester" id="fsem">
+                    <option value="">All</option>
+                    {% for n in semesters %}
+                    <option value="{{ n }}" {% if semester == n %}selected{% endif %}>{{ n }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="field" style="flex: 0 0 auto;">
+                <button type="submit" style="margin-top:0;">Filter</button>
+            </div>
+        </form>
+
+        <table id="tableCourses">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Course name</th>
+                    <th>Department</th>
+                    <th>Semester</th>
+                    <th>Credits</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in courses %}
+                <tr>
+                    <td data-label="Code">{{ c.code }}</td>
+                    <td data-label="Course name">{{ c.name }}</td>
+                    <td data-label="Department">{{ c.department }}</td>
+                    <td data-label="Semester">{{ c.semester }}</td>
+                    <td data-label="Credits">{{ c.credits }}</td>
+                    <td data-label="Actions" class="actions">
+                        <form action="/courses/delete/{{ c.code }}" method="POST" data-confirm="Delete course {{ c.code }}?" data-confirm-label="Delete" style="margin:0;">
+                            <button type="submit" class="delete" style="background:none;border:none;padding:0;color:inherit;cursor:pointer;text-decoration:underline;">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" style="text-align:center;color:var(--text-muted);padding:30px;">No courses yet. Add one below.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card" style="margin-top:20px;">
+        <h2>Add a course</h2>
+        <form action="/courses/add" method="POST" class="filter-bar" style="flex-wrap:wrap;">
+            <div class="field">
+                <label for="code">Course code</label>
+                <input type="text" name="code" id="code" placeholder="e.g. CS3351" maxlength="20" required>
+            </div>
+            <div class="field" style="flex: 2 1 220px;">
+                <label for="name">Course name</label>
+                <input type="text" name="name" id="name" placeholder="e.g. Data Structures" maxlength="100" required>
+            </div>
+            <div class="field">
+                <label for="department">Department</label>
+                <select name="department" id="department" required>
+                    {% for d in course_departments %}
+                    <option value="{{ d }}" {% if dept == d %}selected{% endif %}>{{ d }}{% if d == common %} (all departments){% endif %}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="field">
+                <label for="semester">Semester</label>
+                <select name="semester" id="semester" required>
+                    {% for n in semesters %}
+                    <option value="{{ n }}" {% if semester == n %}selected{% endif %}>{{ n }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="field">
+                <label for="credits">Credits</label>
+                <input type="number" name="credits" id="credits" value="3" min="1" max="10" required>
+            </div>
+            <div class="field" style="flex: 0 0 auto;">
+                <button type="submit" style="margin-top:0;">Add course</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

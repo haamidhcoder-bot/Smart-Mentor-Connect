@@ -20,7 +20,7 @@ def graph(subject, exam_id):
         # roll_no always comes from the session, never from the URL.
         image, exam_name = generate_graph(
             student.roll_no, subject, exam_id,
-            student.student_class, student.section, bg=RED_BG,
+            student.department, student.year, student.section, bg=RED_BG,
         )
     except Exception:
         return render_template("Error.html", data="No marks are available for that graph yet.", location="/home")
@@ -35,7 +35,7 @@ def piegraph(exam_id):
         return render_template("Error.html", data="Please log in again.", location="/")
     try:
         image, exam_name = generate_pie_graph(
-            student.roll_no, exam_id, student.student_class, student.section, bg=RED_BG,
+            student.roll_no, exam_id, student.department, student.year, student.section, bg=RED_BG,
         )
     except Exception:
         return render_template(

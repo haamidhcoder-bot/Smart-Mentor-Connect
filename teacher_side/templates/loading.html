@@ -1,7 +1,7 @@
 {% extends "base.html" %}
+{% block title %}Sending Results…{% endblock %}
 
 {% block head %}
-<title>Sending Results… | Smart Mentor Connect</title>
 {% endblock %}
 
 {% block body %}
@@ -24,7 +24,7 @@
               </div>
 
         </center>
-        <h2 id="loadingTitle">Sending results to parents…</h2>
+        <h2 id="loadingTitle">Sending results to students…</h2>
         <p id="loadingSubtext" style="color: var(--text-muted);">
             Please don't close or refresh this page while emails are being sent.
         </p>
@@ -82,15 +82,12 @@
         var exam = params.get("exam") || "";
 
         if (!sub || !exam) {
-            window.location.href = "/error_page?msg=" + encodeURIComponent("Missing subject or exam. Please try again.");
+            window.location.href = "/error_page?msg=" + encodeURIComponent("Missing course or exam. Please try again.");
             return;
         }
 
-        // Backend accepts either the class<=10 or class>10 subject field names,
-        // so we send both to be safe. Exam field name is the same for both classes.
         var formData = new FormData();
-        formData.append("subject10", sub);
-        formData.append("subject12", sub);
+        formData.append("subject", sub);
         formData.append("exam", exam);
 
         var jobId = null;

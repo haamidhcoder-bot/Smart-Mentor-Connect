@@ -1,9 +1,10 @@
 from sqlalchemy import text
 
 
-def ensure_profile_columns(db):
-    """Add the profile name column to existing databases if it is missing."""
-    if db.engine.dialect.name != "mysql":
+def ensure_profile_columns(engine):
+    """Add the profile name column to an existing college database if it is
+    missing. ``engine`` is that college's SQLAlchemy engine."""
+    if engine.dialect.name != "mysql":
         return  # uses information_schema; tables come from db.create_all()
 
     statements = [
@@ -12,8 +13,13 @@ def ensure_profile_columns(db):
         ("Admin", "face_id", "ALTER TABLE Admin ADD COLUMN face_id VARCHAR(200) NULL"),
     ]
 
+    with engine.begin() as conn:
+        _apply(conn, statements)
+
+
+def _apply(conn, statements):
     for table_name, column_name, alter_sql in statements:
-        exists = db.session.execute(
+        exists = conn.execute(
             text(
                 """
                 SELECT COUNT(*)
@@ -27,6 +33,4 @@ def ensure_profile_columns(db):
         ).scalar()
 
         if not exists:
-            db.session.execute(text(alter_sql))
-
-    db.session.commit()
+            conn.execute(text(alter_sql))

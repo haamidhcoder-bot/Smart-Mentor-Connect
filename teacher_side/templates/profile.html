@@ -1,7 +1,7 @@
 {% extends "base.html" %}
+{% block title %}Profile{% endblock %}
 
 {% block head %}
-<title>Profile | Smart Mentor Connect</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
 {% endblock %}
 
@@ -27,10 +27,10 @@
                         <span class="account-info-value">{{ role }}</span>
                     </div>
                     <div class="account-info-row">
-                        <span class="account-info-label">Class Teacher</span>
+                        <span class="account-info-label">Class Advisor</span>
                         <span class="account-info-value">
-                            {% if account.class_teacher and account.class_teacher_sec %}
-                                {{ account.class_teacher }} - {{ account.class_teacher_sec }}
+                            {% if account.advisor_dept and account.advisor_year and account.advisor_section %}
+                                {{ account.advisor_dept }} Year {{ account.advisor_year }} - {{ account.advisor_section }}
                             {% else %}
                                 Not assigned
                             {% endif %}
@@ -69,14 +69,6 @@
                     <i class="fa-solid fa-chevron-right account-chevron"></i>
                 </a>
 
-                <form action="{{ url_for('auth.log_out') }}" method="get" id="logoutForm">
-                    <button class="account-menu-item account-logout" type="submit">
-                        <span class="account-menu-left">
-                            <i class="fa-solid fa-right-from-bracket account-menu-icon"></i>
-                            <span>Log out</span>
-                        </span>
-                    </button>
-                </form>
             </div>
         </div>
     </div>
@@ -95,10 +87,5 @@
     });
 })();
 
-document.getElementById("logoutForm").addEventListener("submit", function () {
-    if (typeof showPageLoadingOverlay === "function") {
-        showPageLoadingOverlay("Logging out...");
-    }
-});
 </script>
 {% endblock %}

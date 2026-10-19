@@ -1,241 +1,178 @@
 import csv
 import io
-import mysql.connector as sql
+import os
 from datetime import datetime
 
 from shared import settings
+from shared.extensions import db
+from shared.models import Attendance, Mark, Student
+from shared.services.roll_no import normalise
 
-def connect():
-    cn= sql.connect(**settings.mysql_connect_kwargs())
+CSV_COLUMNS = ["roll_no", "student_name", "student_gmail", "DOB", "mobile_no"]
 
-    cur=cn.cursor()
 
-    return cn,cur
+def export_csv(department: str, year: int, sec: str):
+    """CSV of one department / year / section, in the same column layout the
+    import expects."""
+    students = (
+        Student.query.filter_by(department=department, year=year, section=sec)
+        .order_by(Student.roll_no)
+        .all()
+    )
 
-def export_csv(class_value:int, sec:str):
-    cn, cur = connect()
-
-    try:
-        cur.execute(
-            "SELECT * FROM students WHERE class=%s AND section=%s",
-            (class_value, sec)
-        )
-
-        output = io.StringIO()
-        csv_writer = csv.writer(output)
-
-        csv_writer.writerow(
-            [
-                "student_name",
-                "student_gmail",
-                "DOB",
-                "mobile_no",
-            ]
-        )
-
-        for row in cur.fetchall():
-            csv_writer.writerow(
-                [
-                    row[1],
-                    row[4],
-                    row[5],
-                    row[6],
-                ]
-            )
-    finally:
-        cur.close()
-        cn.close()
-
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(CSV_COLUMNS)
+    for s in students:
+        writer.writerow([s.roll_no, s.student_name, s.student_gmail, s.DOB, s.mobile_no])
     return output.getvalue()
 
-SECTION_CODES = {"A": 1, "B": 2, "C": 3}
+
+def _parse_dob(value, line_no):
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(value, fmt).date()
+        except ValueError:
+            continue
+    raise ValueError(
+        f"Line {line_no}: invalid date '{value}'. Use YYYY-MM-DD or DD/MM/YYYY."
+    )
 
 
-def import_csv(file, class_value:int, sec:str):
-    cn, cur = connect()
+def import_csv(file, department: str, year: int, sec: str):
+    """Add or update students of one department / year / section from a CSV.
 
-    reader = csv.reader(io.TextIOWrapper(file, encoding="utf-8-sig"))
+    Required columns: roll_no, student_name. Optional: student_gmail, DOB,
+    mobile_no. Existing roll numbers in the same group are updated; nothing is
+    ever deleted. A roll number that already belongs to a different
+    department / year / section is rejected instead of being moved.
+    Everything is rolled back if any row is invalid.
 
-    # Skip the header row
-    next(reader, None)
+    Returns (created, updated).
+    """
+    reader = csv.DictReader(io.TextIOWrapper(file, encoding="utf-8-sig"))
+    if not reader.fieldnames:
+        raise ValueError("The file is empty.")
 
-    cur.execute("DELETE FROM students WHERE class = %s", (class_value,))
+    columns = {name.strip().lower(): name for name in reader.fieldnames if name}
+    for required in ("roll_no", "student_name"):
+        if required not in columns:
+            raise ValueError(f"Missing required column '{required}'.")
 
-    added = 0
-    pending = []
-    used_roll_numbers = set()
+    created = updated = 0
+    seen = set()
 
     try:
-        for row in reader:
-            row = [c.strip() for c in row]
+        for line_no, row in enumerate(reader, start=2):
+            def cell(key):
+                return (row.get(columns[key]) or "").strip() if key in columns else ""
 
-            if not row:
+            if not any((v or "").strip() for v in row.values() if isinstance(v, str)):
                 continue
 
-            if not any(row):
-                continue
+            roll_no = normalise(cell("roll_no"))
+            if not roll_no:
+                raise ValueError(f"Line {line_no}: invalid or missing roll number.")
+            if roll_no in seen:
+                raise ValueError(f"Line {line_no}: roll number {roll_no} appears twice.")
+            seen.add(roll_no)
 
-            student_name = row[0].strip() if len(row) > 0 else ""
+            name = cell("student_name")
+            if not name:
+                raise ValueError(f"Line {line_no}: missing student name.")
 
-            student_gmail = (
-                row[1].strip()
-                if len(row) > 1 and row[1]
-                else None
-            )
+            gmail = cell("student_gmail") or None
+            if gmail and "@" not in gmail:
+                raise ValueError(f"Line {line_no}: invalid email '{gmail}'.")
 
-            dob = (
-                row[2].strip()
-                if len(row) > 2 and row[2]
-                else None
-            )
+            dob = _parse_dob(cell("dob"), line_no) if cell("dob") else None
 
-            mobile_no = (
-                row[3].strip()
-                if len(row) > 3 and row[3]
-                else None
-            )
+            mobile = cell("mobile_no")
+            if mobile and not mobile.isdigit():
+                raise ValueError(f"Line {line_no}: invalid mobile number '{mobile}'.")
 
-            if dob:
-                try:
-                    dob = datetime.strptime(dob, "%Y-%m-%d").date()
-
-                except ValueError:
-                    try:
-                        dob = datetime.strptime(dob, "%d/%m/%Y").date()
-
-                    except ValueError:
-                        raise ValueError(
-                            f"Invalid date '{dob}'. "
-                            "Use YYYY-MM-DD or DD/MM/YYYY."
-                        )
-
-            row_class=class_value
-            row_section=sec
-
-            pending.append(
-                (
-                    student_name,
-                    row_class,
-                    row_section,
-                    student_gmail,
-                    dob,
-                    mobile_no,
-                )
-            )
-
-            added += 1
-
-        groups = {}
-
-        for student_name, row_class, row_section, student_gmail, dob, mobile_no in pending:
-            groups.setdefault((row_class, row_section), []).append(
-                (student_name, student_gmail, dob, mobile_no)
-            )
-
-        for (row_class, row_section), rows in groups.items():
-
-            class_int = int(row_class)
-
-            if row_section not in SECTION_CODES:
-                raise ValueError(
-                    f"'{row_section}' is not a valid section."
-                )
-
-            roll_prefix = class_int * 1000 + SECTION_CODES[row_section] * 100
-
-            cur.execute(
-                """
-                SELECT roll_no
-                FROM students
-                WHERE class=%s AND section=%s
-                """,
-                (class_int, row_section)
-            )
-
-            used_roll_numbers.update(r[0] for r in cur.fetchall())
-
-            next_roll_no = roll_prefix + 1
-
-            while next_roll_no in used_roll_numbers:
-                next_roll_no += 1
-
-            rows.sort(key=lambda x: x[0].lower())
-
-            for student_name, student_gmail, dob, mobile_no in rows:
-
-                if next_roll_no > roll_prefix + 99:
+            student = db.session.get(Student, roll_no)
+            if student is None:
+                db.session.add(Student(
+                    roll_no=roll_no, student_name=name, department=department,
+                    year=year, section=sec, student_gmail=gmail, DOB=dob,
+                    mobile_no=int(mobile) if mobile else None,
+                ))
+                created += 1
+            else:
+                if (student.department, student.year, student.section) != (department, year, sec):
                     raise ValueError(
-                        f"No more roll numbers available for Class {row_class}-{row_section}."
+                        f"Line {line_no}: roll number {roll_no} already belongs to "
+                        f"{student.department} year {student.year}-{student.section}."
                     )
+                student.student_name = name
+                if gmail:
+                    student.student_gmail = gmail
+                if dob:
+                    student.DOB = dob
+                if mobile:
+                    student.mobile_no = int(mobile)
+                updated += 1
 
-                cur.execute(
-                    """
-                    INSERT INTO students
-                    (roll_no, student_name, class, section,
-                     student_gmail, DOB, mobile_no)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s)
-                    """,
-                    (next_roll_no, student_name, class_int,
-                     row_section, student_gmail, dob, mobile_no)
-                )
-
-                used_roll_numbers.add(next_roll_no)
-                added += 1
-
-                next_roll_no += 1
-
-                while next_roll_no in used_roll_numbers:
-                    next_roll_no += 1
-
-        cn.commit()
-        return added
-
+        db.session.commit()
+        return created, updated
     except Exception:
-        cn.rollback()
+        db.session.rollback()
         raise
 
-    finally:
-        cur.close()
-        cn.close()
+
+def _archive_dir():
+    # One folder per college, so two colleges promoting at the same time
+    # never mix their graduates.
+    from shared import colleges
+
+    path = os.path.join(settings.PROJECT_ROOT, "archive", colleges.active_slug() or "")
+    os.makedirs(path, exist_ok=True)
+    return path
+
 
 def promote():
-    cn, cur = connect()
+    """End-of-year promotion: every year moves up by one.
 
+    Final-year students graduate: their details, marks and attendance are
+    written to CSV files in ./archive/<college> and then removed from the database.
+    Roll numbers never change, and marks from earlier semesters are kept.
+    """
+    final_year = settings.max_year()
     try:
-        cur.execute("SELECT COUNT(*) FROM students WHERE class = 12")
-        graduated = cur.fetchone()[0]
+        graduating = Student.query.filter(Student.year == final_year).all()
+        roll_numbers = [s.roll_no for s in graduating]
+        graduated = len(roll_numbers)
 
-        cur.execute("SELECT * FROM students WHERE class = 12")
+        if graduated:
+            stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            folder = _archive_dir()
 
-        data=cur.fetchall()
+            with open(os.path.join(folder, f"graduated_students_{stamp}.csv"), "w", newline="", encoding="utf-8") as f:
+                w = csv.writer(f)
+                w.writerow(["roll_no", "student_name", "department", "year", "section",
+                            "student_gmail", "DOB", "mobile_no"])
+                for s in graduating:
+                    w.writerow([s.roll_no, s.student_name, s.department, s.year,
+                                s.section, s.student_gmail, s.DOB, s.mobile_no])
 
-        year = datetime.now().year
+            with open(os.path.join(folder, f"graduated_marks_{stamp}.csv"), "w", newline="", encoding="utf-8") as f:
+                w = csv.writer(f)
+                w.writerow(["roll_no", "exam_id", "subject", "marks"])
+                for m in Mark.query.filter(Mark.roll_no.in_(roll_numbers)).all():
+                    w.writerow([m.roll_no, m.exam_id, m.subject, m.marks])
 
-        with open(f"Recycle_bin({year-1}-{year}).csv", "w", newline="") as f:
-            f_write = csv.writer(f)
-            f_write.writerows(data)
-            
+            Mark.query.filter(Mark.roll_no.in_(roll_numbers)).delete(synchronize_session=False)
+            Attendance.query.filter(Attendance.roll_no.in_(roll_numbers)).delete(synchronize_session=False)
+            Student.query.filter(Student.roll_no.in_(roll_numbers)).delete(synchronize_session=False)
 
-        cur.execute("DELETE FROM students WHERE class = 12")
+        promoted = (
+            Student.query.filter(Student.year < final_year)
+            .update({Student.year: Student.year + 1}, synchronize_session=False)
+        )
 
-        promoted = 0
-        for cls in range(11, 0, -1):
-            cur.execute("DELETE FROM marks WHERE class = %s", (cls,))
-            cur.execute(
-                """
-                UPDATE students
-                SET class = class + 1, roll_no = roll_no + 1000
-                WHERE class = %s
-                """,
-                (cls,)
-            )
-            promoted += cur.rowcount
-
-        cn.commit()
+        db.session.commit()
         return {"graduated": graduated, "promoted": promoted}
     except Exception:
-        cn.rollback()
+        db.session.rollback()
         raise
-    finally:
-        cur.close()
-        cn.close()

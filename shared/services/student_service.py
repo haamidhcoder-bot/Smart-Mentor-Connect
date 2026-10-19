@@ -7,13 +7,23 @@ from sqlalchemy import func
 
 from shared.extensions import db
 from shared.models import Attendance, Exam, Mark, Student
-
-PASS_MARK = 30          # per subject (same rule the teacher side uses)
-TOTAL_PASS = 150        # out of 500 for 5 subjects
+from shared.services import grading
+from shared.services.course_service import course_credits, course_name
 
 
 def get_student(roll_no):
     return Student.query.filter_by(roll_no=roll_no).first()
+
+
+def exams_for_student(student):
+    """Exams for the semesters the student has reached, oldest first
+    (semester 1 up to the second semester of their current year)."""
+    last_semester = 2 * student.year
+    return (
+        Exam.query.filter(Exam.semester <= last_semester)
+        .order_by(Exam.exam_id)
+        .all()
+    )
 
 
 def exams_with_marks(roll_no):
@@ -42,33 +52,43 @@ def marks_for_exam(roll_no, exam_id):
     subjects = []
     for m in rows:
         value = m.marks or 0
+        entered = value > 0
+        grade, point = grading.grade_for(value) if entered else ("-", None)
         subjects.append({
             "subject": m.subject,
+            "name": course_name(m.subject),
+            "credits": course_credits(m.subject),
             "marks": value,
-            "status": "Not entered" if value == 0 else ("Pass" if value > PASS_MARK else "Fail"),
+            "grade": grade,
+            "grade_point": point,
+            "status": "Not entered" if not entered else ("Pass" if grading.is_pass(value) else "Fail"),
         })
     entered = [s for s in subjects if s["marks"] > 0]
     total = sum(s["marks"] for s in subjects)
     count = len(subjects)
+    complete = bool(subjects) and len(entered) == count
     summary = {
         "total": total,
         "out_of": count * 100,
         "percentage": round(total / (count * 100) * 100, 1) if count else 0,
-        "complete": bool(subjects) and len(entered) == count,
+        "complete": complete,
         "passed": sum(1 for s in subjects if s["status"] == "Pass"),
         "count": count,
+        # Grade point average for this exam, once every course has marks.
+        "gpa": grading.gpa((s["marks"], s["credits"]) for s in subjects) if complete else None,
+        "arrears": sum(1 for s in subjects if s["status"] == "Fail"),
     }
     return subjects, summary
 
 
 def class_rank(student, exam_id):
-    """(rank, class_size, total) among classmates who have a full set of marks
-    for the exam, or None if this student has no complete result yet."""
+    """(rank, section_size, total) among section-mates who have a full set of
+    marks for the exam, or None if this student has no complete result yet."""
     totals = (
         db.session.query(Mark.roll_no, func.sum(Mark.marks), func.min(Mark.marks))
         .join(Student, Student.roll_no == Mark.roll_no)
         .filter(
-            Student.student_class == student.student_class,
+            Student.year == student.year,
             Student.section == student.section,
             Mark.exam_id == exam_id,
         )
@@ -88,12 +108,12 @@ def class_rank(student, exam_id):
 
 
 def podium(student, exam_id):
-    """Top three of the student's own class and section for one exam."""
+    """Top three of the student's own department, year and section for one exam."""
     rows = (
         db.session.query(Student.student_name, func.sum(Mark.marks), func.min(Mark.marks))
         .join(Mark, Student.roll_no == Mark.roll_no)
         .filter(
-            Student.student_class == student.student_class,
+            Student.year == student.year,
             Student.section == student.section,
             Mark.exam_id == exam_id,
         )
@@ -120,13 +140,15 @@ def attendance_month(roll_no, year, month):
     return by_day, counts
 
 
-def attendance_overall(roll_no):
-    rows = (
-        db.session.query(Attendance.status, func.count())
-        .filter(Attendance.roll_no == roll_no)
-        .group_by(Attendance.status)
-        .all()
+def attendance_overall(roll_no, year=None):
+    """Attendance totals. Pass the student's current year to count only this
+    year's attendance (the percentage starts afresh after promotion)."""
+    query = db.session.query(Attendance.status, func.count()).filter(
+        Attendance.roll_no == roll_no
     )
+    if year is not None:
+        query = query.filter(Attendance.year == year)
+    rows = query.group_by(Attendance.status).all()
     counts = {"present": 0, "absent": 0, "leave": 0}
     for status, n in rows:
         if status in counts:

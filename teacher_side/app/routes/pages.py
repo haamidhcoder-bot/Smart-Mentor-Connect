@@ -7,6 +7,7 @@ import bcrypt as bp
 import os
 
 from shared.extensions import db
+from shared import colleges
 from shared import login_required
 from shared.models import Teacher
 from shared import settings as app_settings
@@ -36,9 +37,13 @@ def forgot_password():
         if not gmail:
             return render_template("forgot_password.html", error="Please enter your email address.")
 
+        info = colleges.activate(request.form.get("college", ""))
+        if info is None:
+            return render_template("forgot_password.html", error="Please select your college.", email=gmail)
+
         account = Teacher.query.filter(Teacher.Gmail == gmail).first()
         if not account:
-            return render_template("forgot_password.html", error="No Teacher account found for that email.")
+            return render_template("forgot_password.html", error="No Teacher account found for that email in this college.", email=gmail)
 
         # Store only the account identifier and OTP in the session.
         # Never put a password in a URL or store a plaintext password in the session.
@@ -50,6 +55,7 @@ def forgot_password():
         ).hexdigest()
 
         session["reset_email"] = gmail
+        session["reset_college"] = info.slug
         # Flask's default session is client-side, so never store the plaintext OTP.
         session["reset_otp_hash"] = otp_hash
         session["reset_otp_expires"] = time.time() + 300  # 5 minutes
@@ -67,6 +73,7 @@ def forgot_password():
         except NoInternetError as e:
             current_app.logger.error(e)
             session.pop("reset_email", None)
+            session.pop("reset_college", None)
             session.pop("reset_otp_hash", None)
             session.pop("reset_otp_expires", None)
             session.pop("reset_otp_attempts", None)
@@ -74,6 +81,7 @@ def forgot_password():
         except (EmailSendError, app_settings.MissingSettingError) as e:
             current_app.logger.error(e)
             session.pop("reset_email", None)
+            session.pop("reset_college", None)
             session.pop("reset_otp_hash", None)
             session.pop("reset_otp_expires", None)
             session.pop("reset_otp_attempts", None)
@@ -153,6 +161,10 @@ def reset_password():
     if not session.get("reset_otp_verified") or not session.get("reset_email"):
         return redirect(url_for("pages.forgot_password"))
 
+    # The account belongs to the college chosen on the forgot-password page.
+    if colleges.activate(session.get("reset_college")) is None:
+        return redirect(url_for("pages.forgot_password"))
+
     if request.method == "POST":
         new_password = request.form.get("new_password", "")
         confirm_password = request.form.get("confirm_password", "")
@@ -170,6 +182,7 @@ def reset_password():
         account = Teacher.query.filter(Teacher.Gmail == gmail).first()
         if not account:
             session.pop("reset_email", None)
+            session.pop("reset_college", None)
             session.pop("reset_otp_verified", None)
             return redirect(url_for("pages.forgot_password"))
 
@@ -177,6 +190,8 @@ def reset_password():
         db.session.commit()
 
         session.pop("reset_email", None)
+
+        session.pop("reset_college", None)
         session.pop("reset_otp_verified", None)
         current_app.logger.info(f"Password reset completed for {gmail}")
         return redirect(url_for("auth.login_page"))

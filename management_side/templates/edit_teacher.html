@@ -1,47 +1,20 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit | Smart Mentor Connect</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/smart-mentor-connect.png') }}">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/smart-mentor-connect.png') }}">
-</head>
-<body>
-    <div class="container">
-        <div class="card edit-form">
-            <h2>Edit details</h2>
-            <p style="color: var(--text-muted); margin-top: -8px;">
-                {{teacher.gmail}} 
-            </p>
-            <form action="/edit_teacher/{{teacher.Gmail}}" method="POST">
-                <input type="number" name="class_teacher" id="" placeholder="Enter the class for the teacher" required>
-                <select name="class_teacher_sec" id="sec">
-                    <option value="A" {% if sec == "A" %}selected{% endif %}>A</option>
-                    <option value="B" {% if sec == "B" %}selected{% endif %}>B</option>
-                    <option value="C" {% if sec == "C" %}selected{% endif %}>C</option>
-                </select>
-                
-                <button type="submit" style="width:100%;">Update</button>
-            </form>
-        </div>
+{% extends "base.html" %}
+{% from "_forms.html" import select, page_head, form_error %}
+{% block title %}Class advisor{% endblock %}
+{% block body %}
+<div class="container">
+    <div class="card form-card" style="max-width:560px">
+        {{ page_head("Class advisor assignment", "/teachers_data", "Back to teachers", teacher.Gmail) }}
+        {{ form_error(error) }}
+        <form action="/edit_teacher/{{ teacher.Gmail }}" method="POST">
+            {{ select("Department", "advisor_dept", DEPARTMENTS, teacher.advisor_dept) }}
+            {{ select("Year", "advisor_year", YEARS, teacher.advisor_year, prefix="Year ") }}
+            {{ select("Section", "advisor_section", SECTIONS, teacher.advisor_section) }}
+            <div class="form-actions">
+                <button type="submit" data-loading-text="Saving…">Update</button>
+                <a href="/teachers_data" class="back-link">Cancel</a>
+            </div>
+        </form>
     </div>
-
-    <script>
-        document.querySelectorAll('.password-toggle-btn').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                const input = document.getElementById(btn.dataset.target);
-                const eyeIcon = btn.querySelector('.icon-eye');
-                const eyeOffIcon = btn.querySelector('.icon-eye-off');
-                const isHidden = input.type === 'password';
-
-                input.type = isHidden ? 'text' : 'password';
-                eyeIcon.style.display = isHidden ? 'none' : 'block';
-                eyeOffIcon.style.display = isHidden ? 'block' : 'none';
-                btn.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
-            });
-        });
-    </script>
-</body>
-</html>
+</div>
+{% endblock %}

@@ -1,23 +1,24 @@
-<p align="center"><img src="teacher_side/static/images/smart-mentor-connect.png" alt="Smart Mentor Connect logo" width="140"></p>
+<p align="center"><img src="teacher_side/static/images/smart-mentor-connect.jpg" alt="Smart Mentor Connect logo" width="140"></p>
 
 # Smart Mentor Connect
 
-Smart Mentor Connect is a web-based student management and performance analysis platform designed to help schools manage students, teachers, examinations, marks, attendance, and academic performance through a centralized system.
+Smart Mentor Connect is a web-based student management and performance platform for an **engineering college**. It manages students by **department, year and section**, faculty who act as **class advisors (mentors)**, **courses with credits**, semester exams, marks with **grades and GPA**, and attendance with a **75% shortage check**.
 
 ## Features
 
-* Teacher-side dashboard
-* Management-side dashboard
-* Student-side portal (read-only: own marks, graphs, attendance and class rank)
-* Student information management
-* Teacher management
-* Marks management
-* Attendance management
-* Examination management
-* Student performance analysis
-* Performance charts and graphs
-* Class leaderboard
-* CSV student data import and export
+* Faculty (class advisor) dashboard: each advisor manages one department / year / section
+* Management (college office) dashboard
+* **Many colleges in one deployment:** every college has its own database; people choose their college on every login page, and new colleges can register themselves
+* Student portal (read-only: own marks, grades, GPA, attendance, section rank)
+* Students identified by alphanumeric roll / register number (e.g. `21CS001`)
+* Departments, years 1-4, sections (all configurable)
+* Courses with codes, semesters and credits (Courses page on the management side)
+* Semester exams (Internal 1, Internal 2, Model Exam, End Semester for Sem 1-8, created automatically)
+* Marks out of 100 with a configurable pass mark (default 50), grades and a credit-weighted GPA
+* Attendance with an attendance-shortage panel (default minimum 75%) and per-student "classes needed / can still miss" on the student portal
+* Section leaderboard and performance graphs
+* CSV import / export of students (adds and updates, never deletes)
+* End-of-year promotion with graduating students archived to CSV
 * User authentication, including Face ID login
 * AI-assisted student data interaction
 * Email functionality
@@ -89,7 +90,7 @@ Smart-Mentor-Connect/
 │   ├── conftest.py
 │   └── test_smart_mentor_connect_full.py
 ├── requirements.txt
-├── create_databases.py    (manual, destructive reset)
+├── create_databases.py    (optional helper: registers a new empty college)
 ├── .env.example
 ├── .gitignore
 └── README.md
@@ -139,7 +140,20 @@ pip install -r requirements.txt
 
 Smart Mentor Connect uses MySQL as its database.
 
-Both applications create the `schooldb` database and any missing tables on startup. Existing data is never dropped.
+All three applications create what they need on startup and never drop existing data:
+
+* a small **registry database** (`smartmentor_master`, change it with `MASTER_DATABASE`) that only lists the colleges, and
+* **one database per college** (`smc_<college name>`), holding that college's students, teachers, administrators, courses, exams, marks and attendance.
+
+The MySQL user therefore needs permission to `CREATE DATABASE`. An old installation with a single `collegedb` database is registered automatically as the college **Default College**, so existing data keeps working.
+
+### Colleges and logins
+
+* The **management, teacher and student login pages all have a College dropdown** (the choice is remembered in the browser). Roll numbers and e-mail addresses only have to be unique inside one college, and a person only ever sees their own college's data.
+* **Forgot password** (teacher / management) also asks for the college.
+* **Registering a new college:** on the management side open **Register**, choose *Register a new college*, enter the college name, your e-mail and a password. After the OTP e-mail (sent to the owner accounts, `ADMIN1_EMAIL` / `ADMIN2_EMAIL`) is verified, the college and its own database are created and you become its first administrator. Choose *My college is already registered* to add another administrator to an existing college. Teachers and students are then added by the college's administrators, as before.
+* You can also register an empty college from the command line: `python create_databases.py "My College Name"`.
+* The college name is shown in the sidebar once logged in.
 
 ### Configuration (environment variables)
 
@@ -147,7 +161,8 @@ There is no `config.py`. Copy `.env.example` to `.env` (git-ignored) and fill it
 
 | Variable | Used by | Purpose |
 |---|---|---|
-| `MYSQL_PASSWORD` (`MYSQL_HOST`, `MYSQL_USER` optional) | both | MySQL login |
+| `MYSQL_PASSWORD` (`MYSQL_HOST`, `MYSQL_USER` optional) | all | MySQL login (needs `CREATE DATABASE` permission) |
+| `MASTER_DATABASE` (`smartmentor_master`) | all | Name of the registry database that lists the colleges |
 | `TEACHER_SECRET_KEY` | teacher side | Flask session key |
 | `MANAGEMENT_SECRET_KEY` | management side | Flask session key (use a different value) |
 | `STUDENT_SECRET_KEY` | student side | Flask session key (use a different value) |
@@ -155,16 +170,25 @@ There is no `config.py`. Copy `.env.example` to `.env` (git-ignored) and fill it
 | `ADMIN1_EMAIL`, `ADMIN1_APP_PASSWORD` | both | Gmail sender for OTP and result emails |
 | `ADMIN2_EMAIL`, `ADMIN2_APP_PASSWORD` | both | Gmail account that receives OTPs / sends log files |
 | `TEACHER_PORT` (8000), `MANAGEMENT_PORT` (5000), `STUDENT_PORT` (9000), `FLASK_DEBUG` (0) | optional | Run settings |
+| `DEPARTMENTS` (`CSE,IT,AIDS,ECE,EEE,MECH,CIVIL`) | all | Department codes offered by the college |
+| `SECTIONS` (`A,B,C,D`), `MAX_YEAR` (4) | all | Sections per department/year and length of the degree |
+| `PASS_MARK` (50) | all | Minimum marks out of 100 to pass a course |
+| `MIN_ATTENDANCE` (75) | all | Attendance percentage below which a student is flagged |
+| `SESSION_COOKIE_SECURE` (0) | all | Set to `1` when serving over HTTPS so cookies are never sent over plain HTTP |
+| `REMEMBER_DAYS` (7) | all | How long "Remember me" keeps a person logged in |
+| `CSRF_DISABLED` (0) | tests only | Turns CSRF checking off; never set it in production |
 
-(Optional) Populate the database with sample data:
+(Optional) Create two demo colleges with sample data:
 
 ```bash
-python sample_data/populate_school_database.py
+python sample_data/populate_college_database.py --yes   # (re)creates the two demo colleges and fills them with demo data
 ```
+
+It registers **Demo Engineering College** and **Sample Institute of Technology**, each with its own database and the demo logins `admin@example.com` / `demo-advisor@example.com` (password `pass@123`). Pick the college on the login page. Other colleges you registered are not touched.
 
 ## Running the Application
 
-Smart Mentor Connect is split into two separate Flask applications that run independently and share the same database. Activate the virtual environment first, then start each side from the project root.
+Smart Mentor Connect is split into three separate Flask applications that run independently and share the same databases (the college registry plus each college's own database). Activate the virtual environment first, then start each side from the project root.
 
 Management side:
 
@@ -184,7 +208,7 @@ Student side:
 python student_side/run_student.py
 ```
 
-Students sign in with their **roll number and date of birth** (the database has no student passwords). After 5 wrong attempts for a roll number, that roll number is locked for 5 minutes. The student side is read-only and only ever shows the logged-in student's own records.
+Students choose their **college** and sign in with their **roll / register number and date of birth** (the database has no student passwords). After 5 wrong attempts for a roll number (in that college), that roll number is locked for 5 minutes. The student side is read-only and only ever shows the logged-in student's own records.
 
 The applications can then be accessed at:
 
@@ -194,9 +218,21 @@ Teacher side:     http://127.0.0.1:8000
 Student side:     http://127.0.0.1:9000
 ```
 
+### Deploying
+
+Each side has a `wsgi.py`. Example (run one per side, behind nginx/HTTPS, with `SESSION_COOKIE_SECURE=1`):
+
+```bash
+gunicorn --chdir management_side -w 1 --threads 4 -b 127.0.0.1:5000 wsgi:app
+gunicorn --chdir teacher_side    -w 1 --threads 4 -b 127.0.0.1:8000 wsgi:app
+gunicorn --chdir student_side    -w 1 --threads 4 -b 127.0.0.1:9000 wsgi:app
+```
+
+Keep `-w 1`: the e-mail progress state is held in memory. Add `gunicorn` to your environment (`pip install gunicorn`).
+
 ## Testing
 
-Smart Mentor Connect includes a pytest suite (`tests/test_smart_mentor_connect_full.py`) covering the shared decorators, teacher-side and management-side routes, and the shared services. It runs against isolated Flask apps with the database and other external services mocked, so it does not touch your real `schooldb` database, email account, Face ID files, or the AI API.
+Smart Mentor Connect includes a pytest suite (`tests/`) covering the shared decorators, teacher-side, management-side and student-side routes, grading and attendance rules, CSV import and promotion. It runs against isolated Flask apps (mocked, or a throw-away SQLite database), so it does not touch your real college databases, email account, Face ID files, or the AI API.
 
 Install pytest (included in `requirements.txt`) and run the suite from the project root:
 
@@ -206,56 +242,36 @@ pytest -q
 
 All tests should pass on a clean checkout.
 
-## Teacher Side
+## How the college structure works
 
-The teacher side provides functionality for:
+* A **student** belongs to a department, a year (1-4) and a section, and has a roll number that never changes.
+* A **faculty member** is the **class advisor** of exactly one department / year / section and can only see and edit that group.
+* **Courses** (code, name, department, semester, credits) are added on the management side under *Courses*. Use department `ALL` for courses taken by every department (e.g. Mathematics I). Year 1 studies semesters 1-2, year 2 semesters 3-4, and so on.
+* **Exams** are per semester (`Sem 5 - Internal 1`, ...). Marks from earlier semesters are kept when students move up a year.
+* A teacher picks an exam, then a course of that exam's semester, and enters marks 0-100 (0 means "not entered yet").
+* **Grades:** 90+ O (10), 80+ A+ (9), 70+ A (8), 60+ B+ (7), 55+ B (6), 50+ C (5), below the pass mark F (0). Edit `GRADE_SCALE` in `shared/services/grading.py` to match your university. GPA is credit-weighted.
+* **Attendance** is counted per academic year (it starts afresh after promotion). Students below `MIN_ATTENDANCE` are listed to the advisor and the office, and the student sees how many classes they need to attend.
+* **Promotion** (management side > More > Promote) moves everyone up one year. Final-year students are written to `archive/<college>/graduated_students_*.csv` and `archive/<college>/graduated_marks_*.csv`, then removed.
 
-* Viewing students
-* Managing marks
-* Recording attendance
-* Viewing examination results
-* Analyzing student performance
-* Viewing class rankings
-* Monitoring academic progress
+### Setting up a new college
 
-## Management Side
-
-The management side provides functionality for:
-
-* Managing students
-* Managing teachers
-* Managing classes and sections
-* Managing examinations
-* Monitoring attendance
-* Viewing academic performance
-* Managing school-related information
-
-## Performance Analysis
-
-Smart Mentor Connect provides several tools for analyzing academic performance, including:
-
-* Student performance summaries
-* Subject-wise marks
-* Examination results
-* Class rankings
-* Performance graphs
-* Attendance information
-
-These features help teachers and management monitor student progress and make better academic decisions.
+1. Start the management side and open **Register** > *Register a new college* (or use `python create_databases.py "College name"`), verify the OTP, and log in with your college selected.
+2. Set `DEPARTMENTS` (and `SECTIONS`, `PASS_MARK`, ...) in `.env` if the defaults don't fit.
+3. Add each department's courses under **Courses**.
+4. Add faculty under **Faculty** and assign each one a department / year / section.
+5. Import students from CSV (or add them one by one).
 
 ## CSV Import
 
-Smart Mentor Connect supports importing student information using CSV files.
-
-Example:
+Choose the department, year and section on the import page, then upload a CSV with a header row. `roll_no` and `student_name` are required; the other columns may be blank. DOB can be `YYYY-MM-DD` or `DD/MM/YYYY`.
 
 ```csv
-student_name,student_gmail,DOB,mobile_no
-John Singh,JohnSingh@gmail.com,2019-08-09,9722646238
-Arjun Jackson,ArjunJackson@gmail.com,2015-08-11,7214475883
-Vikram Brown,VikramBrown@gmail.com,2019-12-02,8370735411
-William Smith,WilliamSmith@gmail.com,2008-01-07,6721490718
+roll_no,student_name,student_gmail,DOB,mobile_no
+21CS001,Asha Kumar,asha@example.com,2004-08-09,9722646238
+21CS002,Bala Singh,bala@example.com,2004-11-02,7214475883
 ```
+
+Existing roll numbers in the same group are updated, new ones are added, nothing is deleted. A roll number that already belongs to another department, year or section is rejected and the whole file is rolled back.
 
 ## Security
 
@@ -267,46 +283,20 @@ Smart Mentor Connect follows security practices such as:
 * CSV validation
 * Secure credential management
 * Prevention of unauthorized access
+* CSRF tokens on every form and on all POST requests
+* Login throttling (5 failed attempts locks that account for 5 minutes)
+* Delete actions are POST-only and ask for confirmation
+* Security headers and cookies flagged `HttpOnly` / `SameSite=Lax`
 
 Sensitive information such as passwords, API keys, and secret keys should be stored outside the source code.
 
 ## AI Assistance
 
-Smart Mentor Connect includes an AI-assisted interface for interacting with student data and obtaining useful information from the school's database.
+Smart Mentor Connect includes an AI-assisted interface for interacting with student data and obtaining useful information from the college database.
 
 ## Email Functionality
 
 The application supports email functionality for system-related communication, including OTP-based password resets, sending generated files, and notifications.
-
-## Screenshots
-
-### Login Page
-<img src="images/login 1.png" alt="Smart Mentor Connect Login Page" width="800">
-
-<img src="images/login 2.png" alt="Smart Mentor Connect Login Page" width="800">
-
-### Teacher Dashboard
-<img src="images/teacher-dashboard.png" alt="Smart Mentor Connect Teacher Dashboard" width="800">
-
-### Management Dashboard
-<img src="images/management-dashboard.png" alt="Smart Mentor Connect Management Dashboard" width="800">
-
-### Leaderboard
-<img src="images/leaderboard.png" alt="Smart Mentor Connect Leaderboard" width="800">
-
-## Attendance Management
-<img src="images/attendance-management.png" alt="Smart Mentor Connect Attendance Management" width="800">
-
-
-## Attendance Teacher
-<img src="images/attendance-teachers.png" alt="Smart Mentor Connect Attendance Teacher" width="800">
-
-
-## Teachers Data
-<img src="images/teachers-data.png" alt="Smart Mentor Connect Teachers data" width="800">
-
-## AI Assistance
-<img src="images/AI Assistance.png" alt="Smart Mentor Connect AI Assistance" width="800">
 
 ## Contributing
 

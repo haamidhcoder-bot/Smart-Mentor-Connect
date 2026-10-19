@@ -3,20 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register account | Smart Mentor Connect</title>
+    <title>Register | Smart Mentor Connect</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/smart-mentor-connect.png') }}">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/smart-mentor-connect.png') }}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo-mark.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/logo-mark.png') }}">
     
+    {% include "_shared_head.html" %}
 </head>
 <body>
     <div class="login-wrapper">
         <div class="login-box">
+          <img class="login-logo" src="{{ url_for('static', filename='images/logo-full.jpg') }}" alt="Smart Mentor Connect">
           <h1>Register</h1>
           {% if error %}
                <p class="error-message">{{ error }}</p>
           {% endif %}
           <form method="POST" action="{{ url_for('auth.register') }}" data-email-action="send">
+            {% set no_colleges = college_options()|length == 0 %}
+            <div class="college-mode">
+                <label><input type="radio" name="college_mode" value="existing" {% if not no_colleges %}checked{% endif %} {% if no_colleges %}disabled{% endif %}> My college is already registered</label>
+                <label><input type="radio" name="college_mode" value="new" {% if no_colleges %}checked{% endif %}> Register a new college</label>
+            </div>
+            <select name="college" id="college" class="college-select" aria-label="College">
+                <option value="" disabled selected>Select your college</option>
+                {% for c in college_options() %}
+                <option value="{{ c.slug }}">{{ c.name }}</option>
+                {% endfor %}
+            </select>
+            <input type="text" name="new_college_name" id="newCollegeName" placeholder="New college name" maxlength="100" autocomplete="organization" style="display:none;">
             <input type="email" name="username" class="icon-email" placeholder="Email ID" required>
 
             <div class="password-field">
@@ -72,5 +86,22 @@
 <script
     src="{{ url_for('static', filename='js/email-loading.js') }}"
 ></script>
+<script src="{{ url_for('static', filename='js/college-select.js') }}"></script>
+<script>
+    (function () {
+        var radios = document.querySelectorAll('input[name="college_mode"]');
+        var select = document.getElementById("college");
+        var newName = document.getElementById("newCollegeName");
+        function apply() {
+            var isNew = document.querySelector('input[name="college_mode"]:checked').value === "new";
+            select.style.display = isNew ? "none" : "";
+            select.required = !isNew;
+            newName.style.display = isNew ? "" : "none";
+            newName.required = isNew;
+        }
+        radios.forEach(function (r) { r.addEventListener("change", apply); });
+        apply();
+    })();
+</script>
 </body>
 </html>

@@ -12,8 +12,9 @@ def create_account(
     confirm_password=None,
     Table=None,
     face_id=None,
-    class_teacher=None,
-    class_teacher_sec=None,
+    advisor_dept=None,
+    advisor_year=None,
+    advisor_section=None,
     password_hash=None,
 ):
     """
@@ -42,8 +43,9 @@ def create_account(
     }
 
     if Table.__name__ == "Teacher":
-        data["class_teacher"] = class_teacher
-        data["class_teacher_sec"] = class_teacher_sec
+        data["advisor_dept"] = advisor_dept
+        data["advisor_year"] = advisor_year
+        data["advisor_section"] = advisor_section
         data["face_id"] = face_id
 
     try:

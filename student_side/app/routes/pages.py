@@ -26,7 +26,7 @@ def leaderboard():
     if student is None:
         return redirect(url_for("auth.login_page"))
 
-    exams = svc.all_exams()
+    exams = svc.exams_for_student(student)
     valid = {e.exam_id for e in exams}
     chosen = request.args.get("exam", type=int)
     scored = svc.exams_with_marks(student.roll_no)

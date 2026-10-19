@@ -109,6 +109,18 @@ def register_blueprint_app(module_name: str, blueprint_name: str):
     return app, module
 
 
+@pytest.fixture(autouse=True)
+def _fake_college_registry(monkeypatch):
+    """These tests use tiny isolated apps with mocked models, so give them a
+    pretend registry containing one college, "test-college"."""
+    from shared import colleges
+
+    info = colleges.CollegeInfo("test-college", "Test College", "smc_test_college")
+    monkeypatch.setattr(
+        colleges, "get_college", lambda slug: info if slug == "test-college" else None
+    )
+
+
 def set_logged_in(client, username="teacher@example.com", **extra):
     with client.session_transaction() as sess:
         sess["logged_in"] = True
@@ -116,13 +128,12 @@ def set_logged_in(client, username="teacher@example.com", **extra):
         sess.update(extra)
 
 
-def set_teacher_context(client, class_value=12, section="A"):
+def set_teacher_context(client, year=3, section="A", dept="CSE"):
     set_logged_in(
         client,
-        class_teacher=class_value,
-        class_teacher_sec=section,
-        class_value=class_value,
-        sec=section,
+        advisor_dept=dept,
+        advisor_year=year,
+        advisor_section=section,
     )
 
 
@@ -168,7 +179,7 @@ def test_repository_python_files_compile():
 def decorator_app():
     app = make_app()
 
-    from shared.decorators import login_required, class_teacher_required
+    from shared.decorators import login_required, advisor_required
 
     @app.get("/login")
     def login_page():
@@ -181,9 +192,9 @@ def decorator_app():
     )
 
     app.add_url_rule(
-        "/class-protected",
-        "class_protected",
-        class_teacher_required(lambda: "class-protected"),
+        "/advisor-protected",
+        "advisor_protected",
+        advisor_required(lambda: "advisor-protected"),
     )
 
     return app
@@ -208,24 +219,25 @@ def test_login_required_allows_logged_in_user(decorator_app):
     assert response.data == b"protected"
 
 
-def test_class_teacher_required_rejects_logged_out_user(decorator_app):
+def test_advisor_required_rejects_logged_out_user(decorator_app):
     client = decorator_app.test_client()
 
-    response = client.get("/class-protected")
+    response = client.get("/advisor-protected")
 
     assert response.status_code == 302
     assert "/login" in response.headers["Location"]
 
 
-def test_class_teacher_required_rejects_unassigned_teacher(
+def test_advisor_required_rejects_unassigned_teacher(
     decorator_app, monkeypatch
 ):
     from shared import decorators
 
     teacher = SimpleNamespace(
         Gmail="teacher@example.com",
-        class_teacher=None,
-        class_teacher_sec=None,
+        advisor_dept=None,
+        advisor_year=None,
+        advisor_section=None,
     )
 
     fake_query = MagicMock()
@@ -241,20 +253,21 @@ def test_class_teacher_required_rejects_unassigned_teacher(
     client = decorator_app.test_client()
     set_logged_in(client)
 
-    response = client.get("/class-protected")
+    response = client.get("/advisor-protected")
 
     assert response.status_code == 403
 
 
-def test_class_teacher_required_accepts_assigned_teacher(
+def test_advisor_required_accepts_assigned_teacher(
     decorator_app, monkeypatch
 ):
     from shared import decorators
 
     teacher = SimpleNamespace(
         Gmail="teacher@example.com",
-        class_teacher=12,
-        class_teacher_sec="A",
+        advisor_dept="CSE",
+        advisor_year=3,
+        advisor_section="A",
     )
 
     fake_query = MagicMock()
@@ -270,13 +283,14 @@ def test_class_teacher_required_accepts_assigned_teacher(
     client = decorator_app.test_client()
     set_logged_in(client)
 
-    response = client.get("/class-protected")
+    response = client.get("/advisor-protected")
 
     assert response.status_code == 200
 
     with client.session_transaction() as sess:
-        assert sess["class_teacher"] == 12
-        assert sess["class_teacher_sec"] == "A"
+        assert sess["advisor_dept"] == "CSE"
+        assert sess["advisor_year"] == 3
+        assert sess["advisor_section"] == "A"
 
 
 # ============================================================================
@@ -307,8 +321,9 @@ def test_teacher_login_success(monkeypatch):
     teacher = SimpleNamespace(
         Gmail="teacher@example.com",
         password="stored-hash",
-        class_teacher=12,
-        class_teacher_sec="A",
+        advisor_dept="CSE",
+        advisor_year=3,
+        advisor_section="A",
     )
 
     query = MagicMock()
@@ -323,12 +338,14 @@ def test_teacher_login_success(monkeypatch):
     response = client.post(
         "/",
         data={
+            "college": "test-college",
             "username": "teacher@example.com",
             "password": "correct-password",
         },
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 302
+    assert response.location.endswith("/home")
 
     with client.session_transaction() as sess:
         assert sess["logged_in"] is True
@@ -345,8 +362,9 @@ def test_teacher_login_wrong_password(monkeypatch):
     teacher = SimpleNamespace(
         Gmail="teacher@example.com",
         password="stored-hash",
-        class_teacher=12,
-        class_teacher_sec="A",
+        advisor_dept="CSE",
+        advisor_year=3,
+        advisor_section="A",
     )
 
     query = MagicMock()
@@ -361,6 +379,7 @@ def test_teacher_login_wrong_password(monkeypatch):
     response = client.post(
         "/",
         data={
+            "college": "test-college",
             "username": "teacher@example.com",
             "password": "wrong-password",
         },
@@ -381,7 +400,7 @@ def test_teacher_face_login_without_file():
 
     client = app.test_client()
 
-    response = client.post("/login-face")
+    response = client.post("/login-face", data={"college": "test-college"})
 
     assert response.status_code == 200
     assert response.json["context"]["data"] == "No image received"
@@ -397,8 +416,9 @@ def test_teacher_face_login_match(monkeypatch):
     teacher = SimpleNamespace(
         Gmail="teacher@example.com",
         face_id="face-data",
-        class_teacher=12,
-        class_teacher_sec="A",
+        advisor_dept="CSE",
+        advisor_year=3,
+        advisor_section="A",
     )
 
     query = MagicMock()
@@ -412,12 +432,14 @@ def test_teacher_face_login_match(monkeypatch):
     response = client.post(
         "/login-face",
         data={
+            "college": "test-college",
             "face": (io.BytesIO(b"fake-image"), "face.jpg"),
         },
         content_type="multipart/form-data",
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 302
+    assert response.location.endswith("/home")
 
     with client.session_transaction() as sess:
         assert sess["logged_in"] is True
@@ -434,8 +456,9 @@ def test_teacher_face_login_no_match(monkeypatch):
     teacher = SimpleNamespace(
         Gmail="teacher@example.com",
         face_id="face-data",
-        class_teacher=12,
-        class_teacher_sec="A",
+        advisor_dept="CSE",
+        advisor_year=3,
+        advisor_section="A",
     )
 
     query = MagicMock()
@@ -449,6 +472,7 @@ def test_teacher_face_login_no_match(monkeypatch):
     response = client.post(
         "/login-face",
         data={
+            "college": "test-college",
             "face": (io.BytesIO(b"fake-image"), "face.jpg"),
         },
         content_type="multipart/form-data",
@@ -498,7 +522,7 @@ def test_teacher_show_results_requires_subject_and_exam():
     response = client.post("/show_results", data={})
 
     assert response.status_code == 200
-    assert response.json["context"]["data"] == "Select the subject and exam."
+    assert response.json["context"]["data"] == "Select the course and exam."
 
 
 def test_teacher_chatbot_requires_login():
@@ -598,7 +622,7 @@ def test_teacher_marks_edit_rejects_missing_student(monkeypatch):
     query.filter_by.return_value.first.return_value = None
     monkeypatch.setattr(module.Student, "query", query, raising=False)
 
-    response = client.get("/edit/999/Math/1")
+    response = client.get("/edit/21CS999/CS301/1")
 
     assert response.status_code == 302
     assert response.location.endswith("/home")
@@ -612,11 +636,12 @@ def test_teacher_marks_edit_rejects_wrong_class(monkeypatch):
     module.render_template = fake_render_template
 
     client = app.test_client()
-    set_teacher_context(client, 12, "A")
+    set_teacher_context(client, 3, "A")
 
     student = SimpleNamespace(
-        roll_no=10,
-        student_class=11,
+        roll_no="21CS010",
+        department="CSE",
+        year=2,
         section="B",
     )
 
@@ -624,10 +649,10 @@ def test_teacher_marks_edit_rejects_wrong_class(monkeypatch):
     student_query.filter_by.return_value.first.return_value = student
     monkeypatch.setattr(module.Student, "query", student_query, raising=False)
 
-    response = client.get("/edit/10/Math/1")
+    response = client.get("/edit/21CS010/CS301/1")
 
     assert response.status_code == 200
-    assert "not the class teacher" in response.json["context"]["data"]
+    assert "not the class advisor" in response.json["context"]["data"]
 
 
 def test_teacher_marks_edit_rejects_non_numeric_marks(monkeypatch):
@@ -641,11 +666,21 @@ def test_teacher_marks_edit_rejects_non_numeric_marks(monkeypatch):
     set_teacher_context(client)
 
     student = SimpleNamespace(
-        roll_no=10,
-        student_class=12,
+        roll_no="21CS010",
+        department="CSE",
+        year=3,
         section="A",
     )
     mark = SimpleNamespace(marks=0)
+
+    # Exam 1 is a semester-5 exam (year 3) and CS301 is a year-3 course.
+    exam_query = MagicMock()
+    exam_query.filter_by.return_value.first.return_value = SimpleNamespace(exam_id=1, semester=5)
+    monkeypatch.setattr(module.Exam, "query", exam_query, raising=False)
+    monkeypatch.setattr(
+        module, "courses_for",
+        lambda dept, year: [SimpleNamespace(code="CS301", semester=5)],
+    )
 
     student_query = MagicMock()
     student_query.filter_by.return_value.first.return_value = student
@@ -657,7 +692,7 @@ def test_teacher_marks_edit_rejects_non_numeric_marks(monkeypatch):
     monkeypatch.setattr(module.Mark, "query", mark_query, raising=False)
 
     response = client.post(
-        "/edit/10/Math/1",
+        "/edit/21CS010/CS301/1",
         data={"content": "abc"},
     )
 
@@ -676,6 +711,8 @@ def test_teacher_leaderboard_get(monkeypatch):
     )
     module.render_template = fake_render_template
 
+    monkeypatch.setattr(module, "exams_for_year", lambda year: [])
+
     client = app.test_client()
     set_teacher_context(client)
 
@@ -683,7 +720,8 @@ def test_teacher_leaderboard_get(monkeypatch):
 
     assert response.status_code == 200
     assert response.json["template"] == "leaderboard.html"
-    assert response.json["context"]["class_value"] == 12
+    assert response.json["context"]["dept"] == "CSE"
+    assert response.json["context"]["year"] == 3
     assert response.json["context"]["sec"] == "A"
 
 
@@ -693,6 +731,8 @@ def test_teacher_leaderboard_requires_exam(monkeypatch):
         "reports_bp",
     )
     module.render_template = fake_render_template
+
+    monkeypatch.setattr(module, "exams_for_year", lambda year: [])
 
     client = app.test_client()
     set_teacher_context(client)
@@ -713,7 +753,10 @@ def test_teacher_leaderboard_handles_unknown_exam(monkeypatch):
     client = app.test_client()
     set_teacher_context(client)
 
-    monkeypatch.setattr(module, "compute_leaderboard", lambda *args: None)
+    monkeypatch.setattr(module, "exams_for_year", lambda year: [])
+    exam_query = MagicMock()
+    exam_query.filter.return_value.first.return_value = None
+    monkeypatch.setattr(module.Exam, "query", exam_query, raising=False)
 
     response = client.post(
         "/leaderboard",
@@ -734,7 +777,7 @@ def test_teacher_attendance_rejects_missing_payload(monkeypatch):
     client = app.test_client()
     set_teacher_context(client)
 
-    response = client.post("/attendence", data={})
+    response = client.post("/attendance", data={})
 
     assert response.status_code == 200
     assert response.json["context"]["data"] == "No attendance data received"
@@ -751,7 +794,7 @@ def test_teacher_attendance_rejects_invalid_json(monkeypatch):
     set_teacher_context(client)
 
     response = client.post(
-        "/attendence",
+        "/attendance",
         data={"attendance_data": "{bad json"},
     )
 
@@ -770,7 +813,7 @@ def test_teacher_attendance_rejects_invalid_month(monkeypatch):
     set_teacher_context(client)
 
     response = client.post(
-        "/attendence",
+        "/attendance",
         data={
             "attendance_data": json.dumps(
                 {"month": "wrong", "records": {}}
@@ -792,9 +835,9 @@ def test_teacher_graph_rejects_student_outside_class(monkeypatch):
     client = app.test_client()
     set_teacher_context(client)
 
-    monkeypatch.setattr(module, "_student_in_assigned_class", lambda roll: None)
+    monkeypatch.setattr(module, "_student_in_assigned_group", lambda roll: None)
 
-    response = client.get("/graph/99/Math/1")
+    response = client.get("/graph/21CS099/CS301/1")
 
     assert response.status_code == 200
     assert "not authorized" in response.json["context"]["data"].lower()
@@ -810,9 +853,9 @@ def test_teacher_piegraph_rejects_student_outside_class(monkeypatch):
     client = app.test_client()
     set_teacher_context(client)
 
-    monkeypatch.setattr(module, "_student_in_assigned_class", lambda roll: None)
+    monkeypatch.setattr(module, "_student_in_assigned_group", lambda roll: None)
 
-    response = client.get("/piegraph/99/1")
+    response = client.get("/piegraph/21CS099/1")
 
     assert response.status_code == 200
     assert "not authorized" in response.json["context"]["data"].lower()
@@ -859,7 +902,7 @@ def test_teacher_forgot_password_requires_email():
 
     client = app.test_client()
 
-    response = client.post("/forget_pass", data={"email": ""})
+    response = client.post("/forget_pass", data={"college": "test-college", "email": ""})
 
     assert response.status_code == 200
     assert "Please enter your email" in response.json["context"]["error"]
@@ -880,7 +923,7 @@ def test_teacher_forgot_password_unknown_account(monkeypatch):
 
     response = client.post(
         "/forget_pass",
-        data={"email": "missing@example.com"},
+        data={"college": "test-college", "email": "missing@example.com"},
     )
 
     assert response.status_code == 200
@@ -914,7 +957,7 @@ def test_teacher_forgot_password_no_internet_shows_error(monkeypatch):
 
     response = client.post(
         "/forget_pass",
-        data={"email": "teacher@example.com"},
+        data={"college": "test-college", "email": "teacher@example.com"},
     )
 
     assert response.status_code == 200
@@ -952,6 +995,7 @@ def test_teacher_reset_password_rejects_mismatched_passwords(monkeypatch):
     with client.session_transaction() as sess:
         sess["reset_email"] = "teacher@example.com"
         sess["reset_otp_verified"] = True
+        sess["reset_college"] = "test-college"
 
     response = client.post(
         "/reset_password",
@@ -977,6 +1021,7 @@ def test_teacher_reset_password_rejects_short_password(monkeypatch):
     with client.session_transaction() as sess:
         sess["reset_email"] = "teacher@example.com"
         sess["reset_otp_verified"] = True
+        sess["reset_college"] = "test-college"
 
     response = client.post(
         "/reset_password",
@@ -1032,12 +1077,14 @@ def test_admin_login_success(monkeypatch):
     response = client.post(
         "/",
         data={
+            "college": "test-college",
             "username": "admin@example.com",
             "password": "correct",
         },
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 302
+    assert response.location.endswith("/home")
 
     with client.session_transaction() as sess:
         assert sess["logged_in"] is True
@@ -1068,6 +1115,7 @@ def test_admin_login_wrong_password(monkeypatch):
     response = client.post(
         "/",
         data={
+            "college": "test-college",
             "username": "admin@example.com",
             "password": "wrong",
         },
@@ -1088,7 +1136,7 @@ def test_admin_face_login_without_image():
 
     client = app.test_client()
 
-    response = client.post("/login-face")
+    response = client.post("/login-face", data={"college": "test-college"})
 
     assert response.status_code == 200
     assert response.json["context"]["data"] == "No image received"
@@ -1116,11 +1164,12 @@ def test_admin_face_login_success(monkeypatch):
 
     response = client.post(
         "/login-face",
-        data={"face": (io.BytesIO(b"fake"), "face.jpg")},
+        data={"college": "test-college", "face": (io.BytesIO(b"fake"), "face.jpg")},
         content_type="multipart/form-data",
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 302
+    assert response.location.endswith("/home")
 
     with client.session_transaction() as sess:
         assert sess["logged_in"] is True
@@ -1204,7 +1253,7 @@ def test_admin_forgot_password_no_internet_shows_error(monkeypatch):
 
     response = client.post(
         "/forget_pass",
-        data={"email": "admin@example.com"},
+        data={"college": "test-college", "email": "admin@example.com"},
     )
 
     assert response.status_code == 200
@@ -1313,6 +1362,7 @@ def test_admin_registration_stores_hashed_password_and_otp(monkeypatch):
     response = client.post(
         "/register",
         data={
+            "college": "test-college",
             "username": "admin@example.com",
             "password": "abc123",
             "confirm_password": "abc123",
@@ -1352,6 +1402,7 @@ def test_admin_registration_no_internet_shows_error(monkeypatch):
     response = client.post(
         "/register",
         data={
+            "college": "test-college",
             "username": "admin@example.com",
             "password": "abc123",
             "confirm_password": "abc123",
@@ -1455,7 +1506,7 @@ def test_management_home_without_class():
     assert response.json["context"]["students"] == []
 
 
-def test_management_show_students_invalid_class():
+def test_management_show_students_invalid_year():
     app, module = register_blueprint_app(
         "management_side.app.routes.home",
         "home_bp",
@@ -1468,16 +1519,17 @@ def test_management_show_students_invalid_class():
     response = client.post(
         "/show_students",
         data={
-            "class": "not-a-number",
+            "department": "CSE",
+            "year": "not-a-number",
             "section": "A",
         },
     )
 
     assert response.status_code == 200
-    assert response.json["context"]["data"] == "invalid class value"
+    assert response.json["context"]["data"] == "Invalid year."
 
 
-def test_management_show_students_without_selected_class():
+def test_management_show_students_rejects_unknown_department():
     app, module = register_blueprint_app(
         "management_side.app.routes.home",
         "home_bp",
@@ -1489,11 +1541,11 @@ def test_management_show_students_without_selected_class():
 
     response = client.post(
         "/show_students",
-        data={"section": "A"},
+        data={"department": "NOPE", "year": "1", "section": "A"},
     )
 
     assert response.status_code == 200
-    assert response.json["context"]["data"] == "select a class first"
+    assert response.json["context"]["data"] == "Invalid department."
 
 
 def test_management_edit_missing_student():
@@ -1512,7 +1564,7 @@ def test_management_edit_missing_student():
     set_logged_in(client)
 
     response = client.post(
-        "/edit/999",
+        "/edit/21CS999",
         data={"content": "2000-01-01", "Mobile": "123"},
     )
 
@@ -1522,7 +1574,7 @@ def test_management_edit_missing_student():
     assert "No student found" in response.json["context"]["data"]
 
 
-def test_management_export_rejects_invalid_class():
+def test_management_export_requires_a_group():
     app, module = register_blueprint_app(
         "management_side.app.routes.home",
         "home_bp",
@@ -1535,7 +1587,7 @@ def test_management_export_rejects_invalid_class():
     response = client.get("/export_csv")
 
     assert response.status_code == 200
-    assert response.json["context"]["data"] == "invalid class value"
+    assert "select a department" in response.json["context"]["data"].lower()
 
 
 def test_management_import_requires_csv_file():
@@ -1550,7 +1602,7 @@ def test_management_import_requires_csv_file():
 
     response = client.post(
         "/import_csv",
-        data={"class": "12", "section": "A"},
+        data={"department": "CSE", "year": "3", "section": "A"},
     )
 
     assert response.status_code == 200
@@ -1570,7 +1622,8 @@ def test_management_import_rejects_non_csv():
     response = client.post(
         "/import_csv",
         data={
-            "class": "12",
+            "department": "CSE",
+            "year": "3",
             "section": "A",
             "csv_file": (
                 io.BytesIO(b"not csv"),
@@ -1592,17 +1645,15 @@ def test_management_remove_student_calls_service(monkeypatch):
     module.render_template = fake_render_template
     monkeypatch.setattr(module, "remove", MagicMock())
 
-    student_query = MagicMock()
-    student_query.filter.return_value.all.return_value = []
-    monkeypatch.setattr(module.Student, "query", student_query, raising=False)
-
     client = app.test_client()
     set_logged_in(client)
 
-    response = client.post("/delete/15")
+    response = client.post("/delete/21CS015")
 
-    assert response.status_code == 200
-    module.remove.assert_called_once_with(roll_no=15)
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/home")
+    assert client.get("/delete/21CS015").status_code == 405
+    module.remove.assert_called_once_with(roll_no="21CS015")
 
 
 def test_management_remove_teacher_calls_service(monkeypatch):
@@ -1622,7 +1673,8 @@ def test_management_remove_teacher_calls_service(monkeypatch):
 
     response = client.post("/delete_teacher/teacher@example.com")
 
-    assert response.status_code == 200
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/teachers_data")
     module.remove.assert_called_once_with(name="teacher@example.com")
 
 
@@ -1640,14 +1692,15 @@ def test_management_promote_success(monkeypatch):
     )
 
     client = app.test_client()
-    set_logged_in(client, class_value=12, sec="A")
+    set_logged_in(client, dept="CSE", year=3, sec="A")
 
     response = client.post("/promote")
 
     assert response.status_code == 200
 
     with client.session_transaction() as sess:
-        assert "class_value" not in sess
+        assert "dept" not in sess
+        assert "year" not in sess
         assert "sec" not in sess
 
     assert response.json["context"]["promoted_count"] == 10
@@ -1751,9 +1804,9 @@ def test_teacher_registered_routes_exist():
         "/home",
         "/show_results",
         "/chatbot",
-        "/edit/<int:roll_no>/<string:subject>/<int:exam_id>",
+        "/edit/<string:roll_no>/<string:subject>/<int:exam_id>",
         "/leaderboard",
-        "/attendence",
+        "/attendance",
         "/about",
         "/support",
         "/forget_pass",
@@ -1791,11 +1844,11 @@ def test_management_registered_routes_exist():
         "/home",
         "/show_students",
         "/teachers_data",
-        "/edit/<int:roll_no>",
+        "/edit/<string:roll_no>",
         "/edit_teacher/<Gmail>",
         "/export_csv",
         "/import_csv",
-        "/delete/<int:roll_no>",
+        "/delete/<string:roll_no>",
         "/delete_teacher/<string:gmail>",
         "/promote",
     }
@@ -1943,7 +1996,7 @@ def test_email_raises_generic_error_for_non_connectivity_failures(monkeypatch):
 
 
 def test_send_results_job_reports_no_internet_error(monkeypatch):
-    """The bulk "send results to parents" background job should stop and
+    """The bulk "send results to students" background job should stop and
     report a clear no-internet message, instead of marking the job "done"
     while emails silently failed to send."""
     app, module = register_blueprint_app(
@@ -1951,13 +2004,14 @@ def test_send_results_job_reports_no_internet_error(monkeypatch):
         "email_bp",
     )
 
-    student = SimpleNamespace(roll_no=1, student_name="Test Student", student_gmail="parent@example.com")
-    mark = SimpleNamespace(roll_no=1, marks=80)
+    student = SimpleNamespace(roll_no="21CS001", student_name="Test Student", student_gmail="student@example.com")
+    mark = SimpleNamespace(roll_no="21CS001", marks=80)
     exam_obj = SimpleNamespace(exam_id=1)
 
     student_query = MagicMock()
     student_query.filter.return_value.all.return_value = [student]
     monkeypatch.setattr(module.Student, "query", student_query, raising=False)
+    monkeypatch.setattr(module, "course_name", lambda code: "Data Structures")
 
     exam_query = MagicMock()
     exam_query.filter.return_value.first.return_value = exam_obj
@@ -1985,7 +2039,8 @@ def test_send_results_job_reports_no_internet_error(monkeypatch):
         "username": "teacher@example.com",
     }
 
-    module._run_send_job(app, job_id, "teacher@example.com", "app-password", 10, "A", "Maths", "Midterm")
+    monkeypatch.setattr(module.colleges, "activate", lambda slug: None)
+    module._run_send_job(app, "test-college", job_id, "teacher@example.com", "app-password", "CSE", 3, "A", "CS301", "Sem 5 - Internal 1")
 
     job = module._jobs[job_id]
     assert job["status"] == "error"
@@ -2042,8 +2097,9 @@ def test_teacher_face_login_does_not_authenticate_without_match(monkeypatch):
     teacher = SimpleNamespace(
         Gmail="teacher@example.com",
         face_id="stored",
-        class_teacher=12,
-        class_teacher_sec="A",
+        advisor_dept="CSE",
+        advisor_year=3,
+        advisor_section="A",
     )
 
     query = MagicMock()
@@ -2056,7 +2112,7 @@ def test_teacher_face_login_does_not_authenticate_without_match(monkeypatch):
 
     response = client.post(
         "/login-face",
-        data={"face": (io.BytesIO(b"fake"), "face.jpg")},
+        data={"college": "test-college", "face": (io.BytesIO(b"fake"), "face.jpg")},
         content_type="multipart/form-data",
     )
 
@@ -2081,6 +2137,7 @@ def test_admin_registration_does_not_store_plain_password(monkeypatch):
     response = client.post(
         "/register",
         data={
+            "college": "test-college",
             "username": "admin@example.com",
             "password": password,
             "confirm_password": password,

@@ -406,3 +406,22 @@
     .account-form-card { padding: 24px 20px; }
     .account-actions { flex-direction: column; }
 }
+
+/* Keep glyphs centred in their tiles: Font Awesome sets display:inline-block
+   on .fa-solid/.fa-regular, which was overriding the flex centring above. */
+.account-menu-icon,
+.account-menu-icon.fa-solid,
+.account-menu-icon.fa-regular {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    text-align: center;
+}
+.account-menu-icon::before {
+    display: block;
+    line-height: 1;
+}
+.account-menu-left > span {
+    white-space: nowrap;
+}

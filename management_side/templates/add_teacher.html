@@ -1,339 +1,39 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add Teacher | Smart Mentor Connect</title>
-
-    <link rel="stylesheet"
-          href="{{ url_for('static', filename='style.css') }}">
-          <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/smart-mentor-connect.png') }}">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/smart-mentor-connect.png') }}">
-</head>
-
-<body>
-
+{% extends "base.html" %}
+{% from "_forms.html" import field, select, password_field, page_head, form_error %}
+{% block title %}Add teacher{% endblock %}
+{% block body %}
 <div class="container">
-
-    <div class="card edit-form">
-
-        <h2>Add Teacher</h2>
-
-        <form id="teacherForm"
-              action="{{ url_for('pages.add_teacher') }}"
-              method="POST">
-
-            <input
-                type="email"
-                name="username"
-                class="icon-email"
-                placeholder="Email ID"
-                required>
-
-
-            <div class="password-field">
-
-                <input
-                    type="password"
-                    name="password"
-                    id="password"
-                    class="icon-password"
-                    placeholder="Password"
-                    required>
-
-                <button
-                    type="button"
-                    class="password-toggle-btn"
-                    data-target="password"
-                    aria-label="Show password">
-
-                    <svg class="icon-eye"
-                         viewBox="0 0 24 24"
-                         width="18"
-                         height="18"
-                         fill="none"
-                         stroke="currentColor"
-                         stroke-width="2"
-                         stroke-linecap="round"
-                         stroke-linejoin="round">
-
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path>
-
-                        <circle cx="12" cy="12" r="3"></circle>
-
-                    </svg>
-
-                    <svg class="icon-eye-off"
-                         viewBox="0 0 24 24"
-                         width="18"
-                         height="18"
-                         fill="none"
-                         stroke="currentColor"
-                         stroke-width="2"
-                         stroke-linecap="round"
-                         stroke-linejoin="round"
-                         style="display:none;">
-
-                        <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.8 21.8 0 0 1 5.06-6.06M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a21.7 21.7 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-
-                        <line x1="1" y1="1" x2="23" y2="23"></line>
-
-                    </svg>
-
-                </button>
-
+    <div class="card form-card">
+        {{ page_head("Add teacher", "/teachers_data", "Back to teachers", "Create a class advisor account. Each class can have one advisor.") }}
+        {{ form_error(error) }}
+        <form action="/add_teacher" method="POST">
+            <div class="form-grid">
+                <div class="span-2">{{ field("Teacher email (username)", "username", type="email", required=True, value=form.username if form else "", autocomplete="off") }}</div>
+                {{ password_field("Password", "password", help="At least 6 characters.") }}
+                {{ password_field("Confirm password", "confirm_password") }}
+                {{ select("Advisor department", "advisor_dept", DEPARTMENTS, form.advisor_dept if form else "") }}
+                {{ select("Advisor year", "advisor_year", YEARS, form.advisor_year if form else "", prefix="Year ") }}
+                {{ select("Advisor section", "advisor_section", SECTIONS, form.advisor_section if form else "") }}
             </div>
-
-
-            <div class="password-field">
-
-                <input
-                    type="password"
-                    name="confirm_password"
-                    id="confirm_password"
-                    class="icon-password"
-                    placeholder="Confirm Password"
-                    required>
-
-                <button
-                    type="button"
-                    class="password-toggle-btn"
-                    data-target="confirm_password"
-                    aria-label="Show password">
-
-                    <svg class="icon-eye"
-                         viewBox="0 0 24 24"
-                         width="18"
-                         height="18"
-                         fill="none"
-                         stroke="currentColor"
-                         stroke-width="2"
-                         stroke-linecap="round"
-                         stroke-linejoin="round">
-
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path>
-
-                        <circle cx="12" cy="12" r="3"></circle>
-
-                    </svg>
-
-                    <svg class="icon-eye-off"
-                         viewBox="0 0 24 24"
-                         width="18"
-                         height="18"
-                         fill="none"
-                         stroke="currentColor"
-                         stroke-width="2"
-                         stroke-linecap="round"
-                         stroke-linejoin="round"
-                         style="display:none;">
-
-                        <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.8 21.8 0 0 1 5.06-6.06M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a21.7 21.7 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-
-                        <line x1="1" y1="1" x2="23" y2="23"></line>
-
-                    </svg>
-
-                </button>
-
+            <div class="form-actions">
+                <button type="submit" data-loading-text="Creating…">Add teacher</button>
+                <a href="/teachers_data" class="back-link">Cancel</a>
             </div>
-
-
-            <input
-                type="number"
-                name="class_teacher"
-                placeholder="Enter the class for the teacher"
-                required>
-
-
-            <select name="class_teacher_sec" id="sec" required>
-
-                <option value="">
-                    Select Section
-                </option>
-
-                <option value="A"
-                    {% if sec == "A" %}selected{% endif %}>
-                    A
-                </option>
-
-                <option value="B"
-                    {% if sec == "B" %}selected{% endif %}>
-                    B
-                </option>
-
-                <option value="C"
-                    {% if sec == "C" %}selected{% endif %}>
-                    C
-                </option>
-
-            </select>
-
-
-            <!-- Submit teacher -->
-
-            <button
-                type="submit"
-                class="login-btn">
-
-                Add Teacher
-
-            </button>
-
         </form>
-
+    </div>
+</div>
+{% endblock %}
+{% block head %}
 <script>
-/*
-    =====================================
-    ADD TEACHER
-    =====================================
-*/
-
-form.addEventListener(
-    "submit",
-    async function(event) {
-
-        /*
-            Prevent normal browser
-            form submission
-        */
-
-        event.preventDefault();
-
-
-        /*
-            Make sure face was captured
-        */
-
-        if (!faceBlob) {
-
-            alert(
-                "Please click 'Add Login Face ID' first."
-            );
-
-            return;
-        }
-
-
-        /*
-            Collect all form fields
-        */
-
-        const formData =
-            new FormData(form);
-
-
-        /*
-            Add captured face
-        */
-
-        formData.append(
-            "face",
-            faceBlob,
-            "face.jpg"
-        );
-
-
-        /*
-            NOW send everything to Flask
-        */
-
-        const response =
-            await fetch(
-                "{{ url_for('pages.add_teacher') }}",
-                {
-                    method: "POST",
-                    body: formData
-                }
-            );
-
-
-        /*
-            Get Flask response
-        */
-
-        const result =
-            await response.text();
-
-
-        /*
-            Display Flask response
-        */
-
-        document.open();
-
-        document.write(result);
-
-        document.close();
-
-    }
-);
-
-
-/*
-    =====================================
-    PASSWORD SHOW/HIDE
-    =====================================
-*/
-
-document
-    .querySelectorAll(".password-toggle-btn")
-    .forEach(function(btn) {
-
-        btn.addEventListener(
-            "click",
-            function() {
-
-                const input =
-                    document.getElementById(
-                        btn.dataset.target
-                    );
-
-                const eyeIcon =
-                    btn.querySelector(
-                        ".icon-eye"
-                    );
-
-                const eyeOffIcon =
-                    btn.querySelector(
-                        ".icon-eye-off"
-                    );
-
-                const isHidden =
-                    input.type === "password";
-
-
-                input.type =
-                    isHidden
-                    ? "text"
-                    : "password";
-
-
-                eyeIcon.style.display =
-                    isHidden
-                    ? "none"
-                    : "block";
-
-
-                eyeOffIcon.style.display =
-                    isHidden
-                    ? "block"
-                    : "none";
-
-
-                btn.setAttribute(
-                    "aria-label",
-                    isHidden
-                    ? "Hide password"
-                    : "Show password"
-                );
-
-            }
-        );
-
-    });
-
+document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.password-toggle-btn');
+    if (!btn) return;
+    var input = document.getElementById(btn.dataset.target);
+    var hidden = input.type === 'password';
+    input.type = hidden ? 'text' : 'password';
+    btn.querySelector('.icon-eye').style.display = hidden ? 'none' : '';
+    btn.querySelector('.icon-eye-off').style.display = hidden ? '' : 'none';
+    btn.setAttribute('aria-label', hidden ? 'Hide password' : 'Show password');
+});
 </script>
-
-</body>
-</html>
+{% endblock %}

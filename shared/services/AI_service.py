@@ -23,9 +23,10 @@ def _get_client():
 SCHEMA = """
 students
 (
-    roll_no,
+    roll_no,          -- text, e.g. '21CS001'
     student_name,
-    class,
+    department,       -- e.g. 'CSE', 'ECE'
+    year,             -- year of study, 1-4
     section,
     student_gmail,
     DOB,
@@ -35,26 +36,37 @@ students
 marks
 (
     roll_no,
-    class,
+    year,
     exam_id,
-    subject,
-    marks
+    subject,          -- course code, joins to courses.code
+    marks             -- out of 100, 0 means not entered yet
+)
+
+courses
+(
+    code,
+    name,
+    department,       -- 'ALL' = common to every department
+    semester,         -- 1-8
+    credits
 )
 
 attendance
 (
     id,
     roll_no,
-    class_value,
+    department,
+    year,
     section,
     date,
-    status
+    status            -- 'present', 'absent' or 'leave'
 )
 
 exams
 (
     exam_id,
-    exam_name
+    exam_name,        -- e.g. 'Sem 3 - Internal 1'
+    semester
 )
 """
 
@@ -72,19 +84,24 @@ FORBIDDEN = [
 
 def generate_sql(question):
 
-    teacher_class = session.get("class_teacher")
-    teacher_section = session.get("class_teacher_sec")
+    teacher_dept = session.get("advisor_dept")
+    teacher_year = session.get("advisor_year")
+    teacher_section = session.get("advisor_section")
+
+    pass_mark = settings.pass_mark()
+    min_attendance = settings.min_attendance()
 
     prompt = f"""
-You are a MySQL expert.
+You are a MySQL expert for an engineering college database.
 
 Database schema:
 
 {SCHEMA}
 
-The logged-in teacher teaches:
+The logged-in teacher is the class advisor of:
 
-Class: {teacher_class}
+Department: {teacher_dept}
+Year: {teacher_year}
 Section: {teacher_section}
 
 Rules:
@@ -94,13 +111,21 @@ Rules:
 2. Never generate INSERT, UPDATE, DELETE,
 DROP, ALTER, TRUNCATE or CREATE statements.
 
-3. If the user does not specify a class,
-assume class = {teacher_class}.
+3. If the user does not specify a department,
+assume department = '{teacher_dept}'.
 
-4. If the user does not specify a section,
+4. If the user does not specify a year,
+assume year = {teacher_year}.
+
+5. If the user does not specify a section,
 assume section = '{teacher_section}'.
 
-5. Return ONLY SQL.
+6. A mark of 0 means "not entered yet"; ignore those rows when
+averaging. Pass mark is {pass_mark} out of 100. A student is short
+of attendance when present days / marked days is below
+{min_attendance} percent.
+
+7. Return ONLY SQL.
 
 Question:
 

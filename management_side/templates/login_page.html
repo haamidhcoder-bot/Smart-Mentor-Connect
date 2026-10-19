@@ -3,23 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login Page | Smart Mentor Connect</title>
+    <title>Login | Smart Mentor Connect</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/smart-mentor-connect.png') }}">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/smart-mentor-connect.png') }}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo-mark.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/logo-mark.png') }}">
     
+    {% include "_shared_head.html" %}
 </head>
 <body>
     <div class="login-wrapper">
         <div class="login-box">
+          <img class="login-logo" src="{{ url_for('static', filename='images/logo-full.jpg') }}" alt="Smart Mentor Connect">
           <h1 class="has-underline">Welcome Back</h1>
           <p class="login-subtitle">Login to your account</p>
+          {% if error %}<div class="login-error" role="alert">{{ error }}</div>{% endif %}
           {% if request.args.get('account_deleted') %}<div class="alert alert-success">Your account has been deleted.</div>{% endif %}
           <form method="POST" id="loginForm">
 
             <!-- Step 1: username only -->
             <div id="step-username">
-                <input type="email" name="username" id="username" class="icon-email" placeholder="Email ID" required autofocus>
+                <select name="college" id="college" class="college-select" required aria-label="College">
+                    <option value="" disabled {% if not (selected_college or request.args.get('college')) %}selected{% endif %}>Select your college</option>
+                    {% for c in college_options() %}
+                    <option value="{{ c.slug }}" {% if (selected_college or request.args.get('college')) == c.slug %}selected{% endif %}>{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+                <input type="email" name="username" id="username" class="icon-email" placeholder="Email ID" value="{{ prefill_email or '' }}" autocomplete="username" required autofocus>
                 <button type="button" class="login-btn" id="continueBtn">Continue</button>
             </div>
 
@@ -31,7 +40,7 @@
                 </div>
 
                 <div class="password-field">
-                    <input type="password" name="password" id="password" class="icon-password" placeholder="Password">
+                    <input type="password" name="password" id="password" class="icon-password" placeholder="Password" autocomplete="current-password">
                     <button type="button" class="password-toggle-btn" data-target="password" aria-label="Show password">
                         <svg class="icon-eye" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                         <svg class="icon-eye-off" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.8 21.8 0 0 1 5.06-6.06M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a21.7 21.7 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
@@ -83,7 +92,7 @@
           </div>
 
           <div class="register-line"><br>
-            <a href="{{url_for('auth.register')}}">Register</a><br>
+            <a href="{{url_for('auth.register')}}">Register (new college or administrator)</a><br>
           <a href="{{ url_for('pages.support') }}">Support</a></div>
         </div>
       </div>
@@ -157,6 +166,7 @@
         }
     </style>
 
+    <script src="{{ url_for('static', filename='js/college-select.js') }}"></script>
     <script src="{{ url_for('static', filename='js/face-capture.js') }}"></script>
     <script>
         const video = document.getElementById("camera");
@@ -181,17 +191,19 @@
         const faceIdBtn = document.getElementById("faceIdBtn");
         const forgotPasswordLink = document.getElementById("forgotPasswordLink");
         const forgotPasswordBaseHref = forgotPasswordLink.getAttribute("href");
+        const collegeSelect = document.getElementById("college");
 
         async function goToCredentialsStep() {
-            if (!usernameInput.reportValidity()) {
+            if (!collegeSelect.reportValidity() || !usernameInput.reportValidity()) {
                 return;
             }
 
-            loginAsEmail.textContent = usernameInput.value;
+            loginAsEmail.textContent = usernameInput.value + " \u2022 " + collegeSelect.options[collegeSelect.selectedIndex].text;
 
             // Carry the email the person already typed through to the
             // "Forgot Password?" page so it isn't asked for twice.
-            forgotPasswordLink.href = forgotPasswordBaseHref + "?email=" + encodeURIComponent(usernameInput.value);
+            forgotPasswordLink.href = forgotPasswordBaseHref + "?email=" + encodeURIComponent(usernameInput.value) +
+                "&college=" + encodeURIComponent(collegeSelect.value);
 
             // Only offer Face ID as an option once we know this account
             // actually has one set up - otherwise it's a button that's
@@ -207,7 +219,8 @@
                     {
                         method: "POST",
                         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                        body: "username=" + encodeURIComponent(usernameInput.value)
+                        body: "username=" + encodeURIComponent(usernameInput.value) +
+                              "&college=" + encodeURIComponent(collegeSelect.value)
                     }
                 );
                 const data = await response.json();
@@ -251,7 +264,7 @@
         */
         (function resumeAtPasswordStepIfNeeded() {
             const params = new URLSearchParams(window.location.search);
-            const email = params.get("email");
+            const email = params.get("email") || {{ (prefill_email or '')|tojson }};
             if (email) {
                 usernameInput.value = email;
                 goToCredentialsStep();
@@ -331,6 +344,11 @@
                     formData.append(
                         "username",
                         usernameInput.value
+                    );
+
+                    formData.append(
+                        "college",
+                        collegeSelect.value
                     );
 
                     const response =

@@ -4,6 +4,7 @@ from calendar import monthrange
 from flask import Blueprint, redirect, render_template, request, url_for
 
 from shared import login_required
+from shared.services import grading
 from shared.services import student_service as svc
 from .home import current_student
 
@@ -31,7 +32,8 @@ def attendance():
     while len(cells) % 7:
         cells.append(None)
 
-    total_counts, marked, pct = svc.attendance_overall(student.roll_no)
+    total_counts, marked, pct = svc.attendance_overall(student.roll_no, student.year)
+    status = grading.attendance_status(total_counts["present"], marked)
     return render_template(
         "attendance.html",
         student=student,
@@ -43,4 +45,5 @@ def attendance():
         total_counts=total_counts,
         marked=marked,
         pct=pct,
+        status=status,
     )

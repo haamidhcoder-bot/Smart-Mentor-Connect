@@ -1,47 +1,34 @@
-"""Manual, DESTRUCTIVE helper: (re)creates the schooldb database from
-sample_data/school_database_schema.sql.
+"""Manual, NON-destructive helper: registers a new, empty college.
 
-The apps no longer call this automatically - they create any missing
-database/tables on startup without touching existing data. Only run this if
-you really want an empty, fresh database:
+    python create_databases.py "My College Name"
 
-    python create_databases.py --yes
+Every college has its own database. This creates the registry (if needed),
+adds the college to it and creates its own database with all tables. Nothing
+is ever dropped. People can also register a college from the management
+side's Register page, which does the same thing.
+
+The apps also create/upgrade the registry and each college's tables
+themselves, so you normally never need this script.
 """
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from shared import settings
+from shared import colleges
 
 
-def create_database():
-    import mysql.connector as sql
-
-    schema_path = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        "sample_data",
-        "school_database_schema.sql",
-    )
-    with open(schema_path, encoding="utf-8") as f:
-        data = f.read()
-
-    conn = sql.connect(**settings.mysql_connect_kwargs(with_database=False))
+def main(argv):
+    if len(argv) != 2 or argv[1].startswith("-"):
+        sys.exit('Usage: python create_databases.py "College name"')
+    colleges.init_registry()
     try:
-        cur = conn.cursor()
-        for statement in (s.strip() for s in data.split(";")):
-            if statement:
-                cur.execute(statement)
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
+        info = colleges.create_college(argv[1])
+    except colleges.CollegeError as e:
+        sys.exit(str(e))
+    print(f"College '{info.name}' created (database: {info.db_name}).")
+    print("Register its first administrator on the management side's Register page.")
 
 
 if __name__ == "__main__":
-    if "--yes" not in sys.argv:
-        sys.exit("This DROPS and recreates schooldb. Re-run with --yes to confirm.")
-    create_database()
-    print("schooldb recreated (empty).")
+    main(sys.argv)

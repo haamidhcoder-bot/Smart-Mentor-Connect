@@ -39,11 +39,12 @@ def login_required(func):
     return wrapper
 
 
-def class_teacher_required(func):
-    """Allow access only to a logged-in teacher with an assigned class/section.
+def advisor_required(func):
+    """Allow access only to a logged-in teacher who is class advisor of a
+    department / year / section.
 
     The assignment is verified against the Teacher record and then cached in
-    the session, so a user can never grant themselves a class/section just by
+    the session, so a user can never grant themselves a group just by
     posting a form value. Once verified, subsequent requests trust the
     session-cached assignment instead of re-hitting the database every time;
     the cache is repopulated from the Teacher record whenever it's missing.
@@ -53,7 +54,11 @@ def class_teacher_required(func):
         if not session.get("logged_in"):
             return _login_redirect()
 
-        if session.get("class_teacher") is not None and session.get("class_teacher_sec"):
+        if (
+            session.get("advisor_dept")
+            and session.get("advisor_year") is not None
+            and session.get("advisor_section")
+        ):
             return func(*args, **kwargs)
 
         username = session.get("username", "")
@@ -61,14 +66,16 @@ def class_teacher_required(func):
 
         if (
             teacher is None
-            or teacher.class_teacher is None
-            or not teacher.class_teacher_sec
+            or not teacher.advisor_dept
+            or teacher.advisor_year is None
+            or not teacher.advisor_section
         ):
             abort(403)
 
         # Keep the session synchronized with the authoritative Teacher record.
-        session["class_teacher"] = teacher.class_teacher
-        session["class_teacher_sec"] = teacher.class_teacher_sec
+        session["advisor_dept"] = teacher.advisor_dept
+        session["advisor_year"] = teacher.advisor_year
+        session["advisor_section"] = teacher.advisor_section
 
         return func(*args, **kwargs)
 

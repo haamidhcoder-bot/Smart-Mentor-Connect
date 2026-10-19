@@ -1,7 +1,7 @@
 {% extends "base.html" %}
+{% block title %}Profile{% endblock %}
 
 {% block head %}
-<title>Profile | Smart Mentor Connect</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
 {% endblock %}
 
@@ -67,14 +67,6 @@
                     <i class="fa-solid fa-chevron-right account-chevron"></i>
                 </a>
 
-                <form action="{{ url_for('auth.log_out') }}" method="get" id="logoutForm">
-                    <button class="account-menu-item account-logout" type="submit">
-                        <span class="account-menu-left">
-                            <i class="fa-solid fa-right-from-bracket account-menu-icon"></i>
-                            <span>Log out</span>
-                        </span>
-                    </button>
-                </form>
             </div>
         </div>
     </div>
@@ -93,10 +85,5 @@
     });
 })();
 
-document.getElementById("logoutForm").addEventListener("submit", function () {
-    if (typeof showPageLoadingOverlay === "function") {
-        showPageLoadingOverlay("Logging out...");
-    }
-});
 </script>
 {% endblock %}

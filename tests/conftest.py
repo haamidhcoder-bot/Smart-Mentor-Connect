@@ -30,5 +30,6 @@ def _env_settings(monkeypatch):
         "ADMIN1_APP_PASSWORD": "app-password-1",
         "ADMIN2_EMAIL": "admin2@example.com",
         "ADMIN2_APP_PASSWORD": "app-password-2",
+        "CSRF_DISABLED": "1",
     }.items():
         monkeypatch.setenv(key, value)

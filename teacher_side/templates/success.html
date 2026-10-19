@@ -1,7 +1,7 @@
 {% extends "base.html" %}
+{% block title %}Results Sent{% endblock %}
 
 {% block head %}
-<title>Results Sent | Smart Mentor Connect</title>
 {% endblock %}
 
 {% block body %}
@@ -11,9 +11,9 @@
         <h2>Results sent successfully!</h2>
         <p style="color: var(--text-muted);">
             {% if sent_count and sent_count|int > 0 %}
-                Emails were sent to {{ sent_count }} parent(s){% if sub and exam %} for {{ sub }} — {{ exam }}{% endif %}.
+                Emails were sent to {{ sent_count }} student(s){% if sub and exam %} for {{ sub }} — {{ exam }}{% endif %}.
             {% else %}
-                No matching students were found to email for the selected subject and exam.
+                No matching students were found to email for the selected course and exam.
             {% endif %}
         </p>
         <a href="/home" class="btn" style="margin-top: 12px; display:inline-block;">Back to Data</a>

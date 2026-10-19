@@ -1,13 +1,13 @@
 {% extends "base.html" %}
+{% block title %}Leaderboard{% endblock %}
 
 {% block head %}
-<title>Leaderboard | Smart Mentor Connect</title>
 {% endblock %}
 
 {% block body %}
 <div class="container">
   <div class="card">
-    <h2>Class {{ student.student_class }} - {{ student.section }} Leaderboard</h2>
+    <h2>{{ student.department }} &middot; Year {{ student.year }}-{{ student.section }} Leaderboard</h2>
 
     <form method="GET" action="/leaderboard" class="filter-bar">
       <div class="field">

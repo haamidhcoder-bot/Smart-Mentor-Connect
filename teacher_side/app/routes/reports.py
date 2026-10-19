@@ -1,51 +1,60 @@
 import json
 from datetime import date
 
-from flask import Blueprint, render_template, request, session, current_app
+from flask import Blueprint, render_template, request, session, current_app, redirect, url_for
 from shared.extensions import db
 from shared.models import Attendance, Student
+from shared.models import Exam
+from shared.services.attendance_service import attendance_shortage
+from shared.services.course_service import course_count, exams_for_year
 from shared.services.graph_service import generate_graph, generate_pie_graph
 from shared.services.leaderboard_service import compute_leaderboard
-from shared.decorators import login_required, class_teacher_required
+from shared.decorators import login_required, advisor_required
 
 reports_bp = Blueprint("reports", __name__)
 
 
-def _assigned_class():
-    return int(session["class_teacher"]), session["class_teacher_sec"]
+def _assigned_group():
+    return (
+        session["advisor_dept"],
+        int(session["advisor_year"]),
+        session["advisor_section"],
+    )
 
 
-def _student_in_assigned_class(roll_no):
-    class_value, sec = _assigned_class()
+def _student_in_assigned_group(roll_no):
+    dept, year, sec = _assigned_group()
     return Student.query.filter(
         Student.roll_no == roll_no,
-        Student.student_class == class_value,
+        Student.department == dept,
+        Student.year == year,
         Student.section == sec
     ).first()
 
 
 @reports_bp.route(
-    "/graph/<int:roll_no>/<string:subject>/<int:exam_id>",
+    "/graph/<string:roll_no>/<string:subject>/<int:exam_id>",
     methods=["GET", "POST"],
     endpoint="graph"
 )
 @login_required
-@class_teacher_required
-def graph(roll_no: int, subject: str, exam_id: int):
+@advisor_required
+def graph(roll_no: str, subject: str, exam_id: int):
     try:
-        if not subject or not _student_in_assigned_class(roll_no):
+        if not subject or not _student_in_assigned_group(roll_no):
             return render_template(
                 "Error.html",
                 data="You are not authorized to view this student's report.",
                 location="/home"
             )
 
-        class_value, sec = _assigned_class()
+        dept, year, sec = _assigned_group()
         graph_image, _exam1 = generate_graph(
             roll_no=roll_no,
             subject=subject,
             exam_id=exam_id,
-            class_value=class_value,
+            department=dept,
+            year=year,
             sec=sec
         )
         return render_template("graph.html", graph=graph_image)
@@ -54,26 +63,27 @@ def graph(roll_no: int, subject: str, exam_id: int):
        return render_template("Error.html",data="Enter the marks for all the subject to display",location="/home")
 
 @reports_bp.route(
-    "/piegraph/<int:roll_no>/<int:exam_id>",
+    "/piegraph/<string:roll_no>/<int:exam_id>",
     methods=["GET", "POST"],
     endpoint="piegraph"
 )
 @login_required
-@class_teacher_required
-def piegraph(roll_no: int, exam_id: int):
+@advisor_required
+def piegraph(roll_no: str, exam_id: int):
     try:
-        if not _student_in_assigned_class(roll_no):
+        if not _student_in_assigned_group(roll_no):
                return render_template(
                    "Error.html",
                    data="You are not authorized to view this student's report.",
                    location="/home"
                )
        
-        class_value, sec = _assigned_class()
+        dept, year, sec = _assigned_group()
         graph_image, _exam1 = generate_pie_graph(
             roll_no=roll_no,
             exam_id=exam_id,
-            class_value=class_value,
+            department=dept,
+            year=year,
             sec=sec
         )
         return render_template("graph.html", graph=graph_image)
@@ -83,15 +93,18 @@ def piegraph(roll_no: int, exam_id: int):
     
 @reports_bp.route("/leaderboard", methods=["GET", "POST"], endpoint="leaderboard")
 @login_required
-@class_teacher_required
+@advisor_required
 def leaderboard():
-    class_value, sec = _assigned_class()
+    dept, year, sec = _assigned_group()
+    exams = exams_for_year(year)
 
     if request.method == "GET":
         return render_template(
             "leaderboard.html",
-            class_value=class_value,
+            dept=dept,
+            year=year,
             sec=sec,
+            exams=exams,
             exam=""
         )
 
@@ -103,7 +116,11 @@ def leaderboard():
             location="/leaderboard"
         )
 
-    result = compute_leaderboard(class_value, sec, exam_name)
+    exam_row = Exam.query.filter(Exam.exam_name == exam_name).first()
+    if exam_row is not None and exam_row.semester not in {e.semester for e in exams}:
+        exam_row = None
+
+    result = compute_leaderboard(dept, year, sec, exam_name) if exam_row else None
     if result is None:
         return render_template(
             "Error.html",
@@ -113,26 +130,33 @@ def leaderboard():
 
     students, podium, total_marks = result
 
-    session["class_value"] = class_value
-    session["sec"] = sec
-
     return render_template(
         "leaderboard.html",
-        class_value=class_value,
+        dept=dept,
+        year=year,
         sec=sec,
+        exams=exams,
         students=students,
+        names={s.roll_no: s.student_name for s in students},
         total_marks=total_marks,
+        course_total=course_count(dept, exam_row.semester),
         podium=podium,
         sub="All",
         exam=exam_name
     )
 
 
-@reports_bp.route("/attendence", methods=["GET", "POST"], endpoint="attendence")
+@reports_bp.route("/attendence", methods=["GET"], endpoint="attendence_legacy")
+def attendence_legacy():
+    """Old, misspelled URL kept so existing bookmarks still work."""
+    return redirect(url_for("reports.attendence", **request.args), code=301)
+
+
+@reports_bp.route("/attendance", methods=["GET", "POST"], endpoint="attendence")
 @login_required
-@class_teacher_required
+@advisor_required
 def attendence():
-    class_value, sec = _assigned_class()
+    dept, class_year, sec = _assigned_group()
 
     if request.method == "POST":
         payload = request.form.get("attendance_data", "")
@@ -140,7 +164,7 @@ def attendence():
             return render_template(
                 "Error.html",
                 data="No attendance data received",
-                location="/attendence"
+                location="/attendance"
             )
 
         try:
@@ -149,7 +173,7 @@ def attendence():
             return render_template(
                 "Error.html",
                 data="Invalid attendance data",
-                location="/attendence"
+                location="/attendance"
             )
 
         month_str = data.get("month", "")
@@ -161,18 +185,15 @@ def attendence():
             return render_template(
                 "Error.html",
                 data="Invalid month",
-                location="/attendence"
+                location="/attendance"
             )
 
-        for roll_no_str, days in records.items():
-            try:
-                roll_no = int(roll_no_str)
-            except (ValueError, TypeError):
-                continue
+        for roll_no, days in records.items():
+            roll_no = str(roll_no)
 
             # Reject attendance submissions for students outside the
             # logged-in teacher's assigned class and section.
-            if not _student_in_assigned_class(roll_no):
+            if not _student_in_assigned_group(roll_no):
                 current_app.logger.warning(
                     f"{session.get('username', '')} attempted unauthorized "
                     f"attendance update for student {roll_no}"
@@ -191,8 +212,6 @@ def attendence():
 
                 existing = Attendance.query.filter_by(
                     roll_no=roll_no,
-                    class_value=class_value,
-                    section=sec,
                     date=entry_date
                 ).first()
 
@@ -203,7 +222,8 @@ def attendence():
                     db.session.add(
                         Attendance(
                             roll_no=roll_no,
-                            class_value=class_value,
+                            department=dept,
+                            year=class_year,
                             section=sec,
                             date=entry_date,
                             status=status,
@@ -214,9 +234,10 @@ def attendence():
         db.session.commit()
 
     students_exist = Student.query.filter(
-        Student.student_class == class_value,
+        Student.department == dept,
+        Student.year == class_year,
         Student.section == sec
-    ).all()
+    ).order_by(Student.roll_no).all()
 
     students = [
         {"roll_no": student.roll_no, "name": student.student_name}
@@ -233,7 +254,8 @@ def attendence():
     selected_month = f"{view_year:04d}-{view_month:02d}"
 
     existing = Attendance.query.filter(
-        Attendance.class_value == class_value,
+        Attendance.department == dept,
+        Attendance.year == class_year,
         Attendance.section == sec,
         Attendance.date >= date(view_year, view_month, 1),
         Attendance.date < date(
@@ -252,8 +274,10 @@ def attendence():
     return render_template(
         "attendence.html",
         students=students,
-        class_value=class_value,
+        dept=dept,
+        year=class_year,
         sec=sec,
+        shortage=attendance_shortage(dept, class_year, sec),
         selected_month=selected_month,
         existing_records=existing_records
     )

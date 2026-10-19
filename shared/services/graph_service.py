@@ -7,9 +7,10 @@ import seaborn as sns
 import pandas as pd
 
 from shared.models import Exam, Mark
+from shared.services.course_service import course_name
 
 
-def generate_graph(roll_no, subject, exam_id, class_value, sec, bg="#1565A6"):
+def generate_graph(roll_no, subject, exam_id, department=None, year=None, sec=None, bg="#1565A6"):
     try:
         exam_all = Exam.query.order_by(Exam.exam_id).all()
 
@@ -97,7 +98,7 @@ def generate_graph(roll_no, subject, exam_id, class_value, sec, bg="#1565A6"):
         )
 
         plt.ylabel(
-            f"{subject} Marks",
+            f"{course_name(subject)} Marks",
             fontsize=14,
             color="white"
         )
@@ -140,7 +141,7 @@ def generate_graph(roll_no, subject, exam_id, class_value, sec, bg="#1565A6"):
        return render_template("Error.html",data="Enter the marks for all the subject to display",location="/home")
 
 
-def generate_pie_graph(roll_no, exam_id, class_value, sec, bg="#1565A6"):
+def generate_pie_graph(roll_no, exam_id, department=None, year=None, sec=None, bg="#1565A6"):
     try:
         exam = Exam.query.filter(Exam.exam_id == exam_id).first()
         exam1 = exam.exam_name
@@ -161,7 +162,7 @@ def generate_pie_graph(roll_no, exam_id, class_value, sec, bg="#1565A6"):
                 "Enter the marks for all subjects to display the graph."
             )
 
-        labels = [m.subject for m in mark]
+        labels = [course_name(m.subject) for m in mark]
         values = [m.marks for m in mark]
 
         # Seaborn Theme

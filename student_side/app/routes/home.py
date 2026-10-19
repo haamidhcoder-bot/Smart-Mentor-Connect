@@ -1,6 +1,7 @@
 from flask import Blueprint, redirect, render_template, request, session, url_for
 
 from shared import login_required
+from shared.services import grading
 from shared.services import student_service as svc
 
 home_bp = Blueprint("home", __name__)
@@ -22,7 +23,7 @@ def home():
     if student is None:
         return redirect(url_for("auth.login_page"))
 
-    exams = svc.all_exams()
+    exams = svc.exams_for_student(student)
     scored = svc.exams_with_marks(student.roll_no)
 
     # Selected exam: ?exam=<id>, else the latest exam that has marks.
@@ -39,7 +40,8 @@ def home():
         if summary["complete"]:
             rank = svc.class_rank(student, chosen)
 
-    counts, marked, attendance_pct = svc.attendance_overall(student.roll_no)
+    counts, marked, attendance_pct = svc.attendance_overall(student.roll_no, student.year)
+    attendance = grading.attendance_status(counts["present"], marked)
     return render_template(
         "Home.html",
         student=student,
@@ -51,4 +53,5 @@ def home():
         rank=rank,
         attendance_pct=attendance_pct,
         attendance_marked=marked,
+        attendance=attendance,
     )

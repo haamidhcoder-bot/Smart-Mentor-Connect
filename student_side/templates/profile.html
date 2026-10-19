@@ -1,7 +1,7 @@
 {% extends "base.html" %}
+{% block title %}Profile{% endblock %}
 
 {% block head %}
-<title>Profile | Smart Mentor Connect</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
 {% endblock %}
 
@@ -19,7 +19,8 @@
 
                 <div class="account-info">
                     <div class="account-info-row"><span class="account-info-label">Roll number</span><span class="account-info-value">{{ student.roll_no }}</span></div>
-                    <div class="account-info-row"><span class="account-info-label">Class</span><span class="account-info-value">{{ student.student_class }} - {{ student.section }}</span></div>
+                    <div class="account-info-row"><span class="account-info-label">Department</span><span class="account-info-value">{{ student.department }}</span></div>
+                    <div class="account-info-row"><span class="account-info-label">Year &amp; section</span><span class="account-info-value">Year {{ student.year }} - {{ student.section }}</span></div>
                     <div class="account-info-row"><span class="account-info-label">Email</span><span class="account-info-value">{{ student.student_gmail or 'Not provided' }}</span></div>
                     <div class="account-info-row"><span class="account-info-label">Date of birth</span><span class="account-info-value">{{ student.DOB.strftime('%d %b %Y') if student.DOB else 'Not provided' }}</span></div>
                     <div class="account-info-row"><span class="account-info-label">Mobile</span><span class="account-info-value">{{ student.mobile_no or 'Not provided' }}</span></div>
@@ -39,16 +40,6 @@
                 </label>
             </div>
 
-            <div class="account-menu">
-                <form action="{{ url_for('auth.log_out') }}" method="get" id="logoutForm">
-                    <button class="account-menu-item account-logout" type="submit">
-                        <span class="account-menu-left">
-                            <i class="fa-solid fa-right-from-bracket account-menu-icon"></i>
-                            <span>Log out</span>
-                        </span>
-                    </button>
-                </form>
-            </div>
         </div>
     </div>
 </div>
@@ -66,10 +57,5 @@
     });
 })();
 
-document.getElementById("logoutForm").addEventListener("submit", function () {
-    if (typeof showPageLoadingOverlay === "function") {
-        showPageLoadingOverlay("Logging out...");
-    }
-});
 </script>
 {% endblock %}

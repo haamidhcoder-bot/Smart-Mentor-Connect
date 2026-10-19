@@ -4,10 +4,11 @@ from shared.extensions import db
 from shared.models import Student, Exam, Mark
 
 
-def compute_leaderboard(class_value, section, exam_name):
-    """Return leaderboard data for exactly one class and section."""
+def compute_leaderboard(department, year, section, exam_name):
+    """Return leaderboard data for exactly one department, year and section."""
     students = Student.query.filter(
-        Student.student_class == class_value,
+        Student.department == department,
+        Student.year == year,
         Student.section == section
     ).all()
 
@@ -25,7 +26,8 @@ def compute_leaderboard(class_value, section, exam_name):
         Student,
         Student.roll_no == Mark.roll_no
     ).filter(
-        Mark.student_class == class_value,
+        Student.department == department,
+        Student.year == year,
         Student.section == section,
         Mark.exam_id == exam.exam_id
     ).group_by(

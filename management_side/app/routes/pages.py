@@ -8,12 +8,15 @@ import bcrypt as bp
 from datetime import datetime
 
 from shared import db,login_required
+from shared import colleges
 from shared.models import Teacher,Admin,Student
 from shared.services.create_account_service import create_account
 from shared.services.face_id_service import save_face, face_detected, FACE_ID_DIR
 from shared import settings as app_settings
 from shared.services.email_service import email, NoInternetError, EmailSendError
 from shared.services.profile_service import initials_for_name, password_bytes
+from shared.services.roll_no import normalise
+from .home import parse_group
 
 pages_bp = Blueprint("pages", __name__)
 
@@ -36,9 +39,13 @@ def forgot_password():
         if not gmail:
             return render_template("forgot_password.html", error="Please enter your email address.")
 
+        info = colleges.activate(request.form.get("college", ""))
+        if info is None:
+            return render_template("forgot_password.html", error="Please select your college.", email=gmail)
+
         account = Admin.query.filter(Admin.Gmail == gmail).first()
         if not account:
-            return render_template("forgot_password.html", error="No Admin account found for that email.")
+            return render_template("forgot_password.html", error="No Admin account found for that email in this college.", email=gmail)
 
         # Store only the account identifier and OTP in the session.
         # Never put a password in a URL or store a plaintext password in the session.
@@ -50,6 +57,7 @@ def forgot_password():
         ).hexdigest()
 
         session["reset_email"] = gmail
+        session["reset_college"] = info.slug
         # Flask's default session is client-side, so never store the plaintext OTP.
         session["reset_otp_hash"] = otp_hash
         session["reset_otp_expires"] = time.time() + 300  # 5 minutes
@@ -67,6 +75,7 @@ def forgot_password():
         except NoInternetError as e:
             current_app.logger.error(e)
             session.pop("reset_email", None)
+            session.pop("reset_college", None)
             session.pop("reset_otp_hash", None)
             session.pop("reset_otp_expires", None)
             session.pop("reset_otp_attempts", None)
@@ -74,6 +83,7 @@ def forgot_password():
         except (EmailSendError, app_settings.MissingSettingError) as e:
             current_app.logger.error(e)
             session.pop("reset_email", None)
+            session.pop("reset_college", None)
             session.pop("reset_otp_hash", None)
             session.pop("reset_otp_expires", None)
             session.pop("reset_otp_attempts", None)
@@ -153,6 +163,10 @@ def reset_password():
     if not session.get("reset_otp_verified") or not session.get("reset_email"):
         return redirect(url_for("pages.forgot_password"))
 
+    # The account belongs to the college chosen on the forgot-password page.
+    if colleges.activate(session.get("reset_college")) is None:
+        return redirect(url_for("pages.forgot_password"))
+
     if request.method == "POST":
         new_password = request.form.get("new_password", "")
         confirm_password = request.form.get("confirm_password", "")
@@ -170,6 +184,7 @@ def reset_password():
         account = Admin.query.filter(Admin.Gmail == gmail).first()
         if not account:
             session.pop("reset_email", None)
+            session.pop("reset_college", None)
             session.pop("reset_otp_verified", None)
             return redirect(url_for("pages.forgot_password"))
 
@@ -177,6 +192,8 @@ def reset_password():
         db.session.commit()
 
         session.pop("reset_email", None)
+
+        session.pop("reset_college", None)
         session.pop("reset_otp_verified", None)
         current_app.logger.info(f"Password reset completed for {gmail}")
         return redirect(url_for("auth.login_page"))
@@ -351,59 +368,82 @@ def add_teacher():
         if request.method == "POST":
             username = request.form.get("username", "").strip()
             password = request.form.get("password", "").strip()
-            class_teacher=request.form.get("class_teacher","").strip()
-            class_teacher_sec=request.form.get("class_teacher_sec","").strip()
             confirm_password = request.form.get("confirm_password", "").strip()
 
-            teacher=Teacher.query.filter(Teacher.class_teacher==class_teacher,
-                                  Teacher.class_teacher_sec==class_teacher_sec
-                                  ).first()
-            
             if not username or not password or not confirm_password:
                 return render_template("Error.html", data="Please fill in all fields.",location="/")
 
-            print(teacher)
+            group, error = parse_group(
+                request.form.get("advisor_dept"),
+                request.form.get("advisor_year"),
+                request.form.get("advisor_section"),
+            )
+            if error:
+                return render_template("Error.html", data=error, location="/add_teacher")
+            dept, year, sec = group
 
-            if not teacher:
-                verification=create_account(user=username,password=password,confirm_password=confirm_password,Table=Teacher,class_teacher=class_teacher,class_teacher_sec=class_teacher_sec,face_id=None)
+            # One class advisor per department / year / section.
+            teacher = Teacher.query.filter(
+                Teacher.advisor_dept == dept,
+                Teacher.advisor_year == year,
+                Teacher.advisor_section == sec,
+            ).first()
 
-                if not verification:
-                    return render_template("Error.html", data="duplicate entry.",location="/add_teacher")
-
-                if  verification=="pass":
-                    return render_template("Error.html", data="passwords are not same.",location="/home")
-
-                if verification:
-                    return redirect("/teachers_data")
-                current_app.logger.info(f"{session.get('username','')} has added {username} as a teacher")
-            else:
+            if teacher:
                 return render_template("Error.html", data="duplicate entry.",location="/add_teacher")
+
+            verification = create_account(
+                user=username,
+                password=password,
+                confirm_password=confirm_password,
+                Table=Teacher,
+                advisor_dept=dept,
+                advisor_year=year,
+                advisor_section=sec,
+                face_id=None,
+            )
+
+            if verification == "pass":
+                return render_template("Error.html", data="passwords are not same.",location="/home")
+
+            if not verification:
+                return render_template("Error.html", data="duplicate entry.",location="/add_teacher")
+
+            current_app.logger.info(f"{session.get('username','')} has added {username} as a class advisor")
+            return redirect("/teachers_data")
         return render_template("add_teacher.html")
 
 @pages_bp.route("/add_student", methods=["GET", "POST"], endpoint="add_student")
 @login_required
 def add_student():
     if request.method == "POST":
+        roll_no = normalise(request.form.get("roll_no", ""))
         student_name = request.form.get("student_name", "").strip()
-        class_input = request.form.get("class", "").strip()
-        sec = request.form.get("section", "").strip()
         student_gmail = request.form.get("student_gmail", "").strip()
         dob = request.form.get("DOB", "").strip()
         mobile_no = request.form.get("mobile_no", "").strip()
 
-        if not student_name or not class_input or not sec:
+        if not student_name:
             return render_template("Error.html", data="Please fill in all required fields.", location="/add_student")
 
-        try:
-            class_value = int(class_input)
-        except ValueError:
-            return render_template("Error.html", data="invalid class value", location="/add_student")
+        if not roll_no:
+            return render_template(
+                "Error.html",
+                data="Enter a valid roll number (letters, digits, '-' or '_', up to 20 characters).",
+                location="/add_student",
+            )
 
-        if class_value < 1 or class_value > 12:
-            return render_template("Error.html", data="Class must be between 1 and 12.", location="/add_student")
+        group, error = parse_group(
+            request.form.get("department"),
+            request.form.get("year"),
+            request.form.get("section"),
+        )
+        if error:
+            return render_template("Error.html", data=error, location="/add_student")
+        dept, year, sec = group
 
-        if sec not in ("A", "B", "C"):
-            return render_template("Error.html", data="invalid section", location="/add_student")
+        if student_gmail and "@" not in student_gmail:
+            return render_template("Error.html", data="invalid email address", location="/add_student")
 
         dob_value = None
         if dob:
@@ -418,51 +458,18 @@ def add_student():
                 return render_template("Error.html", data="invalid mobile number", location="/add_student")
             mobile_value = int(mobile_no)
 
-        # Automatically generate the next roll number for this class and section.
-        # A=1, B=2, C=3:
-        # Class 5-A -> 50101, 50102, ...
-        # Class 5-B -> 50201, 50202, ...
-        # Class 5-C -> 50301, 50302, ...
-        section_code = {"A": 1, "B": 2, "C": 3}[sec]
-        roll_prefix = class_value * 1000 + section_code * 100
-
-        last_student = (
-            Student.query
-            .filter(
-                Student.student_class == class_value,
-                Student.section == sec
-            )
-            .order_by(Student.roll_no.desc())
-            .first()
-        )
-
-        if last_student:
-            next_roll_no = last_student.roll_no + 1
-        else:
-            next_roll_no = roll_prefix + 1
-
-        # Allow roll numbers 01 through 99 within each class/section.
-        if next_roll_no > roll_prefix + 99:
+        if Student.query.filter_by(roll_no=roll_no).first():
             return render_template(
                 "Error.html",
-                data=f"No more roll numbers available for Class {class_value}-{sec}.",
-                location="/add_student"
+                data=f"A student with roll number {roll_no} already exists.",
+                location="/add_student",
             )
 
-        # Protect against an already-used generated roll number.
-        while Student.query.filter_by(roll_no=next_roll_no).first():
-            next_roll_no += 1
-            if next_roll_no > roll_prefix + 99:
-                return render_template(
-                    "Error.html",
-                    data=f"No more roll numbers available for Class {class_value}-{sec}.",
-                    location="/add_student"
-                )
-
         student = Student(
-            roll_no=next_roll_no,
+            roll_no=roll_no,
             student_name=student_name,
-            student_class=class_value,
+            department=dept,
+            year=year,
             section=sec,
             student_gmail=student_gmail or None,
             DOB=dob_value,
@@ -471,7 +478,6 @@ def add_student():
 
         try:
             db.session.add(student)
-            current_app.logger.info(f"{session.get('username','')} has added {student_name} as a student")
             db.session.commit()
         except Exception as e:
             db.session.rollback()
@@ -480,8 +486,7 @@ def add_student():
 
         current_app.logger.info(f"{session.get('username', '')} added student {student_name} (roll no {student.roll_no})")
 
-        session["class_value"] = class_value
-        session["sec"] = sec
+        session["dept"], session["year"], session["sec"] = dept, year, sec
 
         return redirect("/home")
 

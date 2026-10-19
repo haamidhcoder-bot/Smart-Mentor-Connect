@@ -1,7 +1,7 @@
 {% extends "base.html" %}
+{% block title %}Home{% endblock %}
 
 {%block head%}
-<title>Home | Smart Mentor Connect</title>
 {%endblock%}
 
 {%block body%}
@@ -102,253 +102,6 @@
   .modal-footer button:hover { background:#1b4d2e; }
 </style>
 
-<div id="deleteConfirmModal" class="modal-overlay" style="display:none;">
-  <div class="modal-box">
-    <div class="modal-header">
-      <span>Confirm delete</span>
-      <span class="modal-close" onclick="closeDeleteConfirmModal()">&times;</span>
-    </div>
-    <div class="modal-body" id="deleteConfirmBody">
-      Are you sure you want to delete this student?
-    </div>
-    <div class="modal-footer">
-      <button type="button" class="modal-cancel-btn" onclick="closeDeleteConfirmModal()">Cancel</button>
-      <button type="button" id="deleteConfirmBtn">Yes, delete</button>
-    </div>
-  </div>
-</div>
-<script>
-  function closeDeleteConfirmModal() {
-    document.getElementById('deleteConfirmModal').style.display = 'none';
-  }
-</script>
-<style>
-  #deleteConfirmModal .modal-footer .modal-cancel-btn {
-    background:#e0e0e0; color:#333; margin-right:8px;
-  }
-  #deleteConfirmModal .modal-footer .modal-cancel-btn:hover { background:#c7c7c7; }
-  #deleteConfirmModal .modal-footer #deleteConfirmBtn {
-    background:#c0392b;
-  }
-  #deleteConfirmModal .modal-footer #deleteConfirmBtn:hover { background:#922b21; }
-</style>
-
-<!-- Promote: every class moves up one, and the outgoing Class 12 is removed
-     (graduated) so its roll numbers are free for the incoming Class 12.
-     This is irreversible, so it goes through a confirm step and a POST. -->
-<form id="promoteForm" action="/promote" method="POST" style="display:none;"></form>
-<div id="promoteConfirmModal" class="modal-overlay" style="display:none;">
-  <div class="modal-box">
-    <div class="modal-header">
-      <span>Confirm promotion</span>
-      <span class="modal-close" onclick="closePromoteConfirmModal()">&times;</span>
-    </div>
-    <div class="modal-body">
-      This moves every class up by one (Class 1&rarr;2, ..., Class 11&rarr;12) and
-      permanently removes the current Class 12 students, since they graduate.
-      This cannot be undone. Continue?
-    </div>
-    <div class="modal-footer">
-      <button type="button" class="modal-cancel-btn" onclick="closePromoteConfirmModal()">Cancel</button>
-      <button type="button" id="promoteConfirmBtn">Yes, promote</button>
-    </div>
-  </div>
-</div>
-<div id="promoteLoadingOverlay" class="modal-overlay" style="display:none; z-index:1100;">
-  <div class="modal-box" style="width:300px; text-align:center; padding:32px 18px;">
-    <div class="promote-spinner"></div>
-    <p style="margin:18px 0 4px; font-weight:600; color:var(--primary-dark);">Promoting students&hellip;</p>
-    <p style="margin:0; font-size:13px; color:#666;">Please don't close or refresh this page.</p>
-  </div>
-</div>
-{% if promoted %}
-<div id="promoteSuccessModal" class="modal-overlay">
-  <div class="modal-box">
-    <div class="modal-header">
-      <span>Promotion complete</span>
-      <span class="modal-close" onclick="closePromoteSuccessModal()">&times;</span>
-    </div>
-    <div class="modal-body">
-      {{ promoted_count }} student(s) moved up to their next class.
-      {{ graduated_count }} Class 12 student(s) graduated and were removed.
-    </div>
-    <div class="modal-footer">
-      <button type="button" onclick="closePromoteSuccessModal()">OK</button>
-    </div>
-  </div>
-</div>
-<script>
-  function closePromoteSuccessModal() {
-    document.getElementById('promoteSuccessModal').style.display = 'none';
-  }
-</script>
-{% endif %}
-<script>
-  function closePromoteConfirmModal() {
-    document.getElementById('promoteConfirmModal').style.display = 'none';
-  }
-  document.addEventListener('DOMContentLoaded', function () {
-    var promoteBtn = document.getElementById('promoteBtn');
-    if (!promoteBtn) return;
-    promoteBtn.addEventListener('click', function (e) {
-      e.preventDefault();
-      document.getElementById('promoteConfirmModal').style.display = 'flex';
-    });
-    document.getElementById('promoteConfirmBtn').onclick = function () {
-      document.getElementById('promoteConfirmModal').style.display = 'none';
-      document.getElementById('promoteLoadingOverlay').style.display = 'flex';
-      document.getElementById('promoteForm').submit();
-    };
-  });
-</script>
-<style>
-  #promoteConfirmModal .modal-footer .modal-cancel-btn {
-    background:#e0e0e0; color:#333; margin-right:8px;
-  }
-  #promoteConfirmModal .modal-footer .modal-cancel-btn:hover { background:#c7c7c7; }
-  #promoteConfirmModal .modal-footer #promoteConfirmBtn {
-    background:#c0392b;
-  }
-  #promoteConfirmModal .modal-footer #promoteConfirmBtn:hover { background:#922b21; }
-
-  .promote-spinner {
-    width: 48px;
-    height: 48px;
-    margin: 0 auto;
-    border: 5px solid var(--primary-pale, #E8F5EC);
-    border-top-color: var(--primary, #1B5E3B);
-    border-radius: 50%;
-    animation: promote-spin 0.8s linear infinite;
-  }
-  @keyframes promote-spin {
-    to { transform: rotate(360deg); }
-  }
-</style>
-<style>
-  .csv-action-btn {
-    display: inline-flex !important;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    min-width: 180px;
-    height: 54px;
-    padding: 0 28px;
-    box-sizing: border-box;
-    border: 1px solid #176b43;
-    border-radius: 14px;
-    background: #176b43;
-    color: #fff !important;
-    font-size: 18px;
-    font-weight: 600;
-    line-height: 1;
-    text-decoration: none;
-    cursor: pointer;
-    transition: background .2s ease, border-color .2s ease, transform .2s ease;
-  }
-
-  .csv-action-btn:hover {
-    background: #125735;
-    border-color: #125735;
-    color: #fff !important;
-    transform: translateY(-1px);
-  }
-
-  .csv-action-btn:active {
-    transform: translateY(0);
-  }
-
-  .csv-action-btn svg {
-    flex: 0 0 auto;
-  }
-
-  .page-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20px;
-  }
-
-  .csv-actions {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 18px;
-    flex-shrink: 0;
-  }
-
-  .csv-action-btn.secondary {
-    background: #fff;
-    color: #176b43 !important;
-  }
-
-  .csv-action-btn.secondary:hover {
-    background: #f1f8f4;
-    color: #125735 !important;
-  }
-  /* Links inside the navbar */
-  .navbar a {
-    float: left;
-    font-size: 16px;
-    color: white;
-    text-align: center;
-    padding: 14px 16px;
-    text-decoration: none;
-  }
-
-  /* The dropdown container */
-  .dropdown {
-    float: left;
-    overflow: hidden;
-  }
-
-  /* Dropdown button */
-  .dropdown .dropbtn {
-    font-size: 16px;
-    border: none;
-    outline: none;
-    color: #125735;
-    padding: 14px 16px;
-    background-color: inherit;
-    font-family: inherit; /* Important for vertical align on mobile phones */
-    margin: 0; /* Important for vertical align on mobile phones */
-  }
-
-  /* Add a red background color to navbar links on hover */
-  .navbar a:hover, .dropdown:hover .dropbtn {
-    background-color: #def4e9;
-  }
-
-  /* Dropdown content (hidden by default) */
-  .dropdown-content {
-    display: none;
-    position: absolute;
-    background-color: #f9f9f9;
-    min-width: 160px;
-    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-    z-index: 1;
-  }
-
-  /* Links inside the dropdown */
-  .dropdown-content a {
-    float: none;
-    color: black;
-    padding: 12px 16px;
-    text-decoration: none;
-    display: block;
-    text-align: left;
-  }
-
-  /* Add a grey background color to dropdown links on hover */
-  .dropdown-content a:hover {
-    background-color: #ddd;
-  }
-
-  /* Show the dropdown menu on hover */
-  .dropdown:hover .dropdown-content {
-    display: block;
-  }
-</style>
-
 <style>
   .delete:hover{
     color: red;
@@ -418,7 +171,7 @@
       <div class="card">
         <div class="page-header">
               <h2 style="margin-bottom:0;">
-                  {% if class_value %}Class {{ class_value }}{% if sec %} - Section {{ sec }}{% endif %} {% else %}Select a class{% endif %}
+                  {% if dept and year %}{{ dept }} &middot; Year {{ year }}{% if sec %} &middot; Section {{ sec }}{% endif %}{% else %}Select a department, year and section{% endif %}
               </h2>
 
               <div class="dropdown">
@@ -435,7 +188,7 @@
                       <line x1="10" y1="9" x2="8" y2="9"/>
                   </svg>Export CSV</a>
 
-                  <a href="/import_csv{% if class_value %}?class={{ class_value }}{% if sec %}&section={{ sec }}{% endif %}{% endif %}" >
+                  <a href="/import_csv{% if dept and year %}?department={{ dept }}&year={{ year }}{% if sec %}&section={{ sec }}{% endif %}{% endif %}" >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <path d="M14 10v8m0-8-3.5 3.5M14 10l3.5 3.5"/>
                       <path d="M4 15v3a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-3"/>
@@ -464,17 +217,29 @@
 
         <div class="filter-bar">
             <div class="field">
-                <label for="class">Class</label>
-                <input type="number" name="class" id="class" placeholder="Enter class" min="1" max="12" value="{{ class_value or 1 }}">
+                <label for="department">Department</label>
+                <select name="department" id="department">
+                    {% for d in DEPARTMENTS %}
+                    <option value="{{ d }}" {% if dept == d %}selected{% endif %}>{{ d }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="field">
+                <label for="year">Year</label>
+                <select name="year" id="year">
+                    {% for y in YEARS %}
+                    <option value="{{ y }}" {% if year == y %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
             </div>
             <div class="field">
                 <label for="sec">Section</label>
-            <select name="section" id="sec">
-                <option value="A" {% if sec == "A" %}selected{% endif %}>A</option>
-                <option value="B" {% if sec == "B" %}selected{% endif %}>B</option>
-                <option value="C" {% if sec == "C" %}selected{% endif %}>C</option>
-            </select>
-          </div>
+                <select name="section" id="sec">
+                    {% for sc in SECTIONS %}
+                    <option value="{{ sc }}" {% if sec == sc %}selected{% endif %}>{{ sc }}</option>
+                    {% endfor %}
+                </select>
+            </div>
         </div>
 
 
@@ -485,8 +250,8 @@
         </div>
 
       
-      {% if not class_value and not sec%}
-      <h4>Enter a class above to get started.</h4>
+      {% if not dept or not year %}
+      <h4>Choose a department, year and section above to get started.</h4>
       {% elif log1 %}
         <div class="table-toolbar">
             <input type="text" id="searchSub" class="table-search" placeholder="Search by name, roll no, marks, or result" oninput="filterTable('tableSub','searchSub')">
@@ -520,7 +285,7 @@
                       <td data-label="Student mobile" >{{ stu.mobile_no }}</td>
                       <td data-label="Actions" class="actions">
                         <a href="/edit/{{stu.roll_no}}">Edit</a><br>
-                        <a href="/delete/{{stu.roll_no}}" class="delete" data-roll="{{stu.roll_no}}">Delete</a>
+                        <a href="#" class="delete" data-post="/delete/{{ stu.roll_no }}" data-confirm="Delete {{ stu.student_name|e }} ({{ stu.roll_no }})? This also removes their marks and attendance." data-confirm-label="Delete">Delete</a>
                         </td>
                       </tr>
                 {% endfor %}
@@ -569,9 +334,16 @@
           table.sortState[key] = ascending ? "asc" : "desc";
 
           rows.sort(function (a, b) {
-              var av = parseFloat(a.getAttribute("data-" + key)) || 0;
-              var bv = parseFloat(b.getAttribute("data-" + key)) || 0;
-              return ascending ? av - bv : bv - av;
+              var av = a.getAttribute("data-" + key) || "";
+              var bv = b.getAttribute("data-" + key) || "";
+              var cmp;
+              if (key === "roll") {
+                  // Roll numbers are alphanumeric (e.g. 21CS001), so compare as text, numbers inside naturally.
+                  cmp = av.localeCompare(bv, undefined, { numeric: true, sensitivity: "base" });
+              } else {
+                  cmp = (parseFloat(av) || 0) - (parseFloat(bv) || 0);
+              }
+              return ascending ? cmp : -cmp;
           });
 
           rows.forEach(function (row) {
@@ -606,7 +378,7 @@
 
               // Show a confirmation modal instead of sending right away.
               document.getElementById("sendResultsConfirmBody").textContent =
-                  "Send " + sub + " results for " + exam + " to parents?";
+                  "Send " + sub + " results for " + exam + " to students?";
               document.getElementById("sendResultsConfirmModal").style.display = "flex";
 
               var confirmBtn = document.getElementById("sendResultsConfirmBtn");
@@ -619,36 +391,17 @@
           });
       });
 
-      // Delete-student confirmation. Kept as its own DOMContentLoaded listener (rather than
-      // inside the block above) because that block bails out early whenever #sendResultsBtn
-      // isn't on the page, and this popup needs to work regardless of that.
-      document.addEventListener("DOMContentLoaded", function () {
-          var studentsTable = document.getElementById("tableSub");
-          if (!studentsTable) return;
+  </script>
 
-          studentsTable.addEventListener("click", function (e) {
-              var link = e.target.closest(".delete");
-              if (!link) return;
-
-              e.preventDefault();
-
-              var row = link.closest("tr");
-              var name = row ? row.cells[1].textContent.trim() : "";
-              var roll = link.getAttribute("data-roll") || "";
-
-              document.getElementById("deleteConfirmBody").textContent =
-                  "Are you sure you want to delete " +
-                  (name ? name : "this student") +
-                  (roll ? " (roll no " + roll + ")" : "") + "?";
-              document.getElementById("deleteConfirmModal").style.display = "flex";
-
-              var confirmBtn = document.getElementById("deleteConfirmBtn");
-              // Avoid stacking duplicate listeners if the popup is opened more than once.
-              confirmBtn.onclick = function () {
-                  document.getElementById("deleteConfirmModal").style.display = "none";
-                  window.location.href = link.getAttribute("href");
-              };
-          });
-      });
+  <script>
+    // Tap/click support for the "More" menu (hover alone doesn't work on touch screens)
+    (function () {
+      var dd = document.querySelector(".dropdown");
+      if (!dd) return;
+      var btn = dd.querySelector(".dropbtn");
+      btn.addEventListener("click", function (e) { e.stopPropagation(); dd.classList.toggle("open"); });
+      document.addEventListener("click", function (e) { if (!dd.contains(e.target)) dd.classList.remove("open"); });
+      document.addEventListener("keydown", function (e) { if (e.key === "Escape") dd.classList.remove("open"); });
+    })();
   </script>
 {%endblock%}

@@ -3,10 +3,14 @@ import uuid
 
 from flask import Blueprint, render_template, request, session, jsonify, current_app
 
+from shared import colleges
 from shared import settings as app_settings
 from shared.models import Student, Exam, Mark
+from shared.services import grading
+from shared.services.course_service import course_name, courses_for, semesters_for_year
 from shared.services.email_service import email, NoInternetError, EmailSendError
 from shared import login_required
+from shared.decorators import advisor_required
 
 email_bp = Blueprint("email", __name__)
 
@@ -47,13 +51,17 @@ def error_page():
     return render_template("Error.html", data=msg, location="/home")
 
 
-def _run_send_job(app, job_id, sender, password, class_value, sec, sub, exa):
+def _run_send_job(app, college_slug, job_id, sender, password, dept, year, sec, sub, exa):
     """Runs on a background thread. Sends every email and keeps _jobs[job_id]
     updated so the frontend can poll for progress/completion."""
     with app.app_context():
+        # The background thread has no request, so say which college's
+        # database to read the results from.
+        colleges.activate(college_slug)
         try:
             students = Student.query.filter(
-                Student.student_class == class_value,
+                Student.department == dept,
+                Student.year == year,
                 Student.section == sec
             ).all()
 
@@ -63,7 +71,8 @@ def _run_send_job(app, job_id, sender, password, class_value, sec, sub, exa):
                 res = Mark.query.join(
                     Student, Student.roll_no == Mark.roll_no
                 ).filter(
-                    Mark.student_class == class_value,
+                    Student.department == dept,
+                    Student.year == year,
                     Student.section == sec,
                     Mark.exam_id == exam.exam_id,
                     Mark.subject == sub
@@ -86,15 +95,24 @@ def _run_send_job(app, job_id, sender, password, class_value, sec, sub, exa):
                         _jobs[job_id]["status"] = "cancelled"
                         return
 
-                status = "passed" if mark.marks > 30 else "failed"
-                msg = f"""Dear Parent/Guardian,
+                if not stu.student_gmail:
+                    continue  # no email address on file
 
-This is to inform you that {stu.student_name} has scored {mark.marks} marks and {status} in {sub} for the {exa}.
-We encourage you to review the student's progress and continue supporting their learning.
-Thank you for your cooperation.
+                grade, _point = grading.grade_for(mark.marks)
+                result = (
+                    f"passed with grade {grade}"
+                    if grading.is_pass(mark.marks)
+                    else "did not reach the pass mark"
+                )
+                title = f"{course_name(sub)} ({sub})"
+                msg = f"""Dear {stu.student_name},
+
+Your result for {title} in the {exa}: {mark.marks} / 100 - you {result}.
+(Pass mark: {grading.pass_mark()}.)
+Please speak to your class advisor if you would like to discuss your progress.
 
 Regards,
-School Administration"""
+Class Advisor / College Administration"""
                 try:
                     email(sender, stu.student_gmail, f"{sub}-{exa}-Marks", msg, password)
                     sent_count += 1
@@ -109,7 +127,7 @@ School Administration"""
                         _jobs[job_id]["status"] = "error"
                         _jobs[job_id]["message"] = (
                             f"{e} Results already sent to {sent_count} "
-                            f"parent(s) before the connection was lost."
+                            f"student(s) before the connection was lost."
                         )
                     return
                 except (EmailSendError, app_settings.MissingSettingError) as e:
@@ -132,11 +150,12 @@ School Administration"""
 
 @email_bp.route("/send_results", methods=["POST"], endpoint="send_results")
 @login_required
+@advisor_required
 def send_results():
     """Called via fetch() from loading.html. Starts sending emails on a
     background thread and returns a job_id immediately, instead of blocking
     the request until every email is sent."""
-    # Results go out from the school's sender account (ADMIN1_EMAIL).
+    # Results go out from the college's sender account (ADMIN1_EMAIL).
     # Teacher logins are teachers' own addresses, which have no app password
     # configured, so looking the logged-in teacher up always failed before.
     try:
@@ -148,13 +167,23 @@ def send_results():
     if not PASSWORD:
         return jsonify({"status": "error", "message": "Email sender account is not configured on the server."}), 500
 
-    class_value = session.get("class_value")
-    sec = session.get("sec")
-    sub = request.form.get("subject10", "") or request.form.get("subject12", "")
+    # The group always comes from the logged-in advisor's assignment.
+    dept = session["advisor_dept"]
+    year = int(session["advisor_year"])
+    sec = session["advisor_section"]
+    sub = request.form.get("subject", "")
     exa = request.form.get("exam", "")
 
-    if not sub or not exa or class_value is None:
-        return jsonify({"status": "error", "message": "Missing subject, exam, or class information."}), 400
+    if not sub or not exa:
+        return jsonify({"status": "error", "message": "Missing course or exam."}), 400
+
+    if sub == "All":
+        return jsonify({"status": "error", "message": "Select a single course to send results for."}), 400
+
+    exam = Exam.query.filter(Exam.exam_name == exa).first()
+    course = next((c for c in courses_for(dept, year) if c.code == sub), None)
+    if exam is None or exam.semester not in semesters_for_year(year) or course is None or course.semester != exam.semester:
+        return jsonify({"status": "error", "message": "That course and exam do not belong together for your class."}), 400
 
     job_id = uuid.uuid4().hex
     with _jobs_lock:
@@ -171,10 +200,12 @@ def send_results():
         target=_run_send_job,
         args=(
             current_app._get_current_object(),
+            session["college"],
             job_id,
             sender,
             PASSWORD,
-            class_value,
+            dept,
+            year,
             sec,
             sub,
             exa,

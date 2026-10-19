@@ -1,7 +1,7 @@
 {% extends "base.html" %}
+{% block title %}Home{% endblock %}
 
 {%block head%}
-<title>Home | Smart Mentor Connect</title>
 {%endblock%}
 
 {%block body%}
@@ -61,7 +61,7 @@
       <span class="modal-close" onclick="closeSendResultsValidationModal()">&times;</span>
     </div>
     <div class="modal-body">
-      Please select both a subject and an exam before sending results.
+      Please select both a course and an exam before sending results.
     </div>
     <div class="modal-footer">
       <button type="button" onclick="closeSendResultsValidationModal()">OK</button>
@@ -75,7 +75,7 @@
       <span class="modal-close" onclick="closeSendResultsConfirmModal()">&times;</span>
     </div>
     <div class="modal-body" id="sendResultsConfirmBody">
-      Are you sure you want to send results to parents?
+      Are you sure you want to send results to students?
     </div>
     <div class="modal-footer">
       <button type="button" class="modal-cancel-btn" onclick="closeSendResultsConfirmModal()">Cancel</button>
@@ -130,52 +130,30 @@
       <div class="card">
           <div style="display:flex; align-items:center; justify-content:space-between;">
               <h2 style="margin-bottom:0;">
-                  {% if class_value %}Class {{ class_value }}{% if sec %} - Section {{ sec }}{% endif %}{% endif %}
+                  {% if dept and year %}{{ dept }} &middot; Year {{ year }}{% if sec %} &middot; Section {{ sec }}{% endif %}{% endif %}
             </h2>
         </div>
 
         <div class="filter-bar">
 
-        {% if class_value and class_value >= 10 %}
-
         <div class="field">
-            <label for="sub2">Subject</label>
-            <select name="subject12" id="sub2">
-                <option value="">Select Subject</option>
-                <option value="English" {% if sub == "English" %}selected{% endif %}>English</option>
-                <option value="Maths" {% if sub == "Maths" %}selected{% endif %}>Maths</option>
-                <option value="Physics" {% if sub == "Physics" %}selected{% endif %}>Physics</option>
-                <option value="Chemistry" {% if sub == "Chemistry" %}selected{% endif %}>Chemistry</option>
-                <option value="Biology" {% if sub == "Biology" %}selected{% endif %}>Biology</option>
-                <option value="All" {% if sub == "All" %}selected{% endif %}>All Subjects</option>
+            <label for="subject">Course</label>
+            <select name="subject" id="subject">
+                <option value="">Select course</option>
+                {% for c in courses %}
+                <option value="{{ c.code }}" data-semester="{{ c.semester }}" {% if sub == c.code %}selected{% endif %}>{{ c.code }} &ndash; {{ c.name }}</option>
+                {% endfor %}
+                <option value="All" {% if sub == "All" %}selected{% endif %}>All courses</option>
             </select>
         </div>
 
-        {% else %}
-        <div class="field">
-            <label for="sub1">Subject</label>
-            <select name="subject10" id="sub1">
-                <option value="">Select Subject</option>
-                <option value="English" {% if sub == "English" %}selected{% endif %}>English</option>
-                <option value="Maths" {% if sub == "Maths" %}selected{% endif %}>Maths</option>
-                <option value="Social" {% if sub == "Social" %}selected{% endif %}>Social</option>
-                <option value="Science" {% if sub == "Science" %}selected{% endif %}>Science</option>
-                <option value="Tamil" {% if sub == "Tamil" %}selected{% endif %}>Tamil</option>
-                <option value="All" {% if sub == "All" %}selected{% endif %}>All Subjects</option>
-            </select>
-        </div>
-
-
-        {% endif %}
         <div class="field">
             <label for="exam">Exam</label>
-            <select name="exam" id="exam" >
-                <option value="">Select Exam</option>
-                <option value="Unit Test 1" {% if exam == "Unit Test 1" %}selected{% endif %}>Unit Test 1</option>
-                <option value="Unit Test 2" {% if exam == "Unit Test 2" %}selected{% endif %}>Unit Test 2</option>
-                <option value="Quarterly Exam" {% if exam == "Quarterly Exam" %}selected{% endif %}>Quarterly Exam</option>
-                <option value="Half Yearly Exam" {% if exam == "Half Yearly Exam" %}selected{% endif %}>Half Yearly Exam</option>
-                <option value="Annual Exam" {% if exam == "Annual Exam" %}selected{% endif %}>Annual Exam</option>
+            <select name="exam" id="exam">
+                <option value="">Select exam</option>
+                {% for e in exams %}
+                <option value="{{ e.exam_name }}" data-semester="{{ e.semester }}" {% if exam == e.exam_name %}selected{% endif %}>{{ e.exam_name }}</option>
+                {% endfor %}
             </select>
         </div>
 
@@ -192,12 +170,12 @@
 
         </div>
 
-        {% if not class_value or not sec%}
+        {% if not dept or not sec %}
         <h4>Enter the required details.</h4>
         {%elif not students%}
         <h4>No students data available.</h4>
         {% elif sub == "All" %}
-        <h4>All subjects &mdash; {{ exam }}</h4>
+        <h4>All courses &mdash; {{ exam }}</h4>
         <div class="table-toolbar">
             <input type="text" id="searchAll" class="table-search" placeholder="Search by name, roll no, marks, or result" oninput="filterTable('tableAll','searchAll')">
             <div class="sort-controls">
@@ -224,12 +202,16 @@
             </thead>
             <tbody>
                 {% for stu in students %}
-                <tr data-roll="{{ stu.roll_no }}" data-marks="{{ total_marks.get(stu.roll_no, 0) }}" data-name="{{ stu.student_name|lower }}" data-result="{% if total_marks.get(stu.roll_no, 0) <= 150 %}fail{% else %}pass{% endif %}">
-                    <td data-label="Roll no" class="{% if total_marks.get(stu.roll_no, 0) <= 150 and total_marks.get(stu.roll_no, 0)!=0 %}fail{%elif total_marks.get(stu.roll_no, 0)==0 %}value{% endif %}">{{ stu.roll_no }}</td>
-                    <td data-label="Student name" class="{% if total_marks.get(stu.roll_no, 0) <= 150 and total_marks.get(stu.roll_no, 0)!=0 %}fail{%elif total_marks.get(stu.roll_no, 0)==0 %}value{% endif %}">{{ stu.student_name }}</td>
-                    <td data-label="Marks" class="{% if total_marks.get(stu.roll_no, 0) <= 150 and total_marks.get(stu.roll_no, 0)!=0 %}fail{%elif total_marks.get(stu.roll_no, 0)==0 %}value{% endif %}">{{ total_marks.get(stu.roll_no, 0) }}</td>
-                    <td  class="{% if total_marks.get(stu.roll_no, 0) <= 150 and total_marks.get(stu.roll_no, 0)!=0 %}fail{%elif total_marks.get(stu.roll_no, 0)==0 %}value{% endif %}">{{ "%.2f"|format((total_marks.get(stu.roll_no, 0)/500)*100) }}</td>
-                    <td class="{% if total_marks.get(stu.roll_no, 0) <= 150 and total_marks.get(stu.roll_no, 0)!=0 %}fail{%elif total_marks.get(stu.roll_no, 0)==0 %}value{% endif %}">{% if total_marks.get(stu.roll_no, 0) <= 150 and total_marks.get(stu.roll_no, 0)!=0 %}Fail{%elif total_marks.get(stu.roll_no, 0)==0 %}Null{%else%}Pass{% endif %}</td>
+                {% set t = total_marks.get(stu.roll_no, 0) %}
+                {% set low = lowest_marks.get(stu.roll_no, 0) %}
+                {% set state = 'value' if t == 0 else ('fail' if low < pass_mark else 'pass') %}
+                {% set cls = 'fail' if state == 'fail' else ('value' if state == 'value' else '') %}
+                <tr data-roll="{{ stu.roll_no }}" data-marks="{{ t }}" data-name="{{ stu.student_name|lower }}" data-result="{{ state }}">
+                    <td data-label="Roll no" class="{{ cls }}">{{ stu.roll_no }}</td>
+                    <td data-label="Student name" class="{{ cls }}">{{ stu.student_name }}</td>
+                    <td data-label="Marks" class="{{ cls }}">{{ t }}</td>
+                    <td data-label="Percentage" class="{{ cls }}">{{ "%.2f"|format((t / (course_total * 100)) * 100) if course_total else "0.00" }}</td>
+                    <td data-label="Result" class="{{ cls }}">{% if state == 'fail' %}Arrear{% elif state == 'value' %}Null{% else %}Pass{% endif %}</td>
                     <td data-label="Actions" class="actions">
                         <a href="/piegraph/{{ stu.roll_no }}/{{ exam_id }}" onclick="showPageLoadingOverlay('Loading graph...')">Graph analysis</a>
                     </td>
@@ -237,9 +219,9 @@
                 {% endfor %}
             </tbody>
         </table>
-        <h4 style="color:rgb(0, 55, 255);">Null - Add marks for all the subjects to see data</h4>
+        <h4 style="color:rgb(0, 55, 255);">Null - add marks for all the courses to see data</h4>
         {% elif sub and exam %}
-        <h4>{{ sub }} &mdash; {{ exam }}</h4>
+        <h4>{{ course_name(sub) }} ({{ sub }}) &mdash; {{ exam }}</h4>
         <div class="table-toolbar">
             <input type="text" id="searchSub" class="table-search" placeholder="Search by name, roll no, marks, or result" oninput="filterTable('tableSub','searchSub')">
             <div class="sort-controls">
@@ -259,6 +241,7 @@
                     <th>Roll no</th>
                     <th>Student name</th>
                     <th>Marks</th>
+                    <th>Grade</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -266,10 +249,13 @@
                 {% for stu in students %}
                     {% for mark in results %}
                     {% if mark.roll_no == stu.roll_no %}
-                    <tr data-roll="{{ stu.roll_no }}" data-marks="{{ mark.marks }}" data-name="{{ stu.student_name|lower }}" data-result="{% if mark.marks <= 30 and mark.marks!=0 %}fail{%elif mark.marks==0 %}value{% else %}pass{% endif %}">
-                        <td data-label="Roll no" class="{% if mark.marks <= 30 and mark.marks!=0 %}fail{%elif mark.marks==0 %}value{% endif %}">{{ stu.roll_no }}</td>
-                        <td data-label="Student name" class="{% if mark.marks <= 30 and mark.marks!=0 %}fail{%elif mark.marks==0 %}value{% endif %}">{{ stu.student_name }}</td>
-                        <td data-label="Marks" class="{% if mark.marks <= 30 and mark.marks!=0 %}fail{%elif mark.marks==0 %}value{% endif %}">{{ mark.marks }}</td>
+                    {% set state = 'value' if mark.marks == 0 else ('fail' if mark.marks < pass_mark else 'pass') %}
+                    {% set cls = 'fail' if state == 'fail' else ('value' if state == 'value' else '') %}
+                    <tr data-roll="{{ stu.roll_no }}" data-marks="{{ mark.marks }}" data-name="{{ stu.student_name|lower }}" data-result="{{ state }}">
+                        <td data-label="Roll no" class="{{ cls }}">{{ stu.roll_no }}</td>
+                        <td data-label="Student name" class="{{ cls }}">{{ stu.student_name }}</td>
+                        <td data-label="Marks" class="{{ cls }}">{{ mark.marks }}</td>
+                        <td data-label="Grade" class="{{ cls }}">{% if mark.marks %}{{ grade_for(mark.marks)[0] }}{% else %}&ndash;{% endif %}</td>
                         <td data-label="Actions" class="actions">
                             <a href="/graph/{{ mark.roll_no }}/{{ mark.subject }}/{{ mark.exam_id }}" onclick="showPageLoadingOverlay('Loading graph...')">Graph analysis</a>
                             <a href="/edit/{{ mark.roll_no }}/{{ mark.subject }}/{{ mark.exam_id }}">Edit</a>
@@ -323,9 +309,16 @@
             table.sortState[key] = ascending ? "asc" : "desc";
 
             rows.sort(function (a, b) {
-                var av = parseFloat(a.getAttribute("data-" + key)) || 0;
-                var bv = parseFloat(b.getAttribute("data-" + key)) || 0;
-                return ascending ? av - bv : bv - av;
+                var av = a.getAttribute("data-" + key) || "";
+                var bv = b.getAttribute("data-" + key) || "";
+                var cmp;
+                if (key === "roll") {
+                    // Roll numbers are alphanumeric (e.g. 21CS001), so compare as text, numbers inside naturally.
+                    cmp = av.localeCompare(bv, undefined, { numeric: true, sensitivity: "base" });
+                } else {
+                    cmp = (parseFloat(av) || 0) - (parseFloat(bv) || 0);
+                }
+                return ascending ? cmp : -cmp;
             });
 
             rows.forEach(function (row) {
@@ -339,16 +332,35 @@
             button.setAttribute("aria-label", ascending ? "Sorted ascending" : "Sorted descending");
         }
 
+        // Only offer the courses that belong to the semester of the chosen exam.
+        function syncCoursesToExam() {
+            var examSel = document.getElementById("exam");
+            var courseSel = document.getElementById("subject");
+            if (!examSel || !courseSel) return;
+            var chosen = examSel.options[examSel.selectedIndex];
+            var semester = chosen ? chosen.getAttribute("data-semester") : "";
+            Array.prototype.forEach.call(courseSel.options, function (opt) {
+                var s = opt.getAttribute("data-semester");
+                var show = !s || !semester || s === semester;
+                opt.hidden = !show;
+                opt.disabled = !show;
+            });
+            var current = courseSel.options[courseSel.selectedIndex];
+            if (current && current.disabled) courseSel.value = "";
+        }
+
         document.addEventListener("DOMContentLoaded", function () {
+            var examSelect = document.getElementById("exam");
+            if (examSelect) {
+                examSelect.addEventListener("change", syncCoursesToExam);
+                syncCoursesToExam();
+            }
             var sendBtn = document.getElementById("sendResultsBtn");
             if (!sendBtn) return;
 
             sendBtn.addEventListener("click", function () {
-                // Whichever field set is present in the DOM (class <=10 vs >10)
-                var subEl = document.getElementById("sub1") || document.getElementById("sub2");
-                // Note: both class<=10 and class>10 exam <select> elements use id="exam",
-                // so this always matches on the first getElementById call; "exam2" is unused.
-                var examEl = document.getElementById("exam") || document.getElementById("exam2");
+                var subEl = document.getElementById("subject");
+                var examEl = document.getElementById("exam");
 
                 var sub = subEl ? subEl.value : "";
                 var exam = examEl ? examEl.value : "";
@@ -360,7 +372,7 @@
 
                 // Show a confirmation modal instead of sending right away.
                 document.getElementById("sendResultsConfirmBody").textContent =
-                    "Send " + sub + " results for " + exam + " to parents?";
+                    "Send " + sub + " results for " + exam + " to students?";
                 document.getElementById("sendResultsConfirmModal").style.display = "flex";
 
                 var confirmBtn = document.getElementById("sendResultsConfirmBtn");

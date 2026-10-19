@@ -57,22 +57,68 @@ def mysql_password():
 
 
 def mysql_database():
-    # Fixed: sample_data/school_database_schema.sql also uses this name.
-    return "schooldb"
+    # Legacy single-college database. Colleges registered through the app get
+    # their own database (see shared/colleges.py); an existing "collegedb" is
+    # registered automatically as a college on first start.
+    return "collegedb"
+
+
+def master_database():
+    """Small registry database that only lists the colleges (their name and
+    database). Student/teacher/admin data never lives here."""
+    return get("MASTER_DATABASE", "smartmentor_master")
+
+
+def _base_url():
+    """SQLAlchemy URL of the database server (database part replaced per use)."""
+    from sqlalchemy.engine import URL, make_url
+
+    override = get("DATABASE_URL")
+    if override:
+        return make_url(override)
+    return URL.create(
+        "mysql+pymysql",
+        username=mysql_user(),
+        password=mysql_password(),
+        host=mysql_host(),
+        database=mysql_database(),
+    )
+
+
+def _url_for_database(name):
+    """Same server as the base URL but a different database. For SQLite
+    (used by the tests) every database is a sibling file: <stem>_<name>.db"""
+    url = _base_url()
+    if url.drivername.startswith("sqlite"):
+        base = url.database
+        if not base or base == ":memory:":
+            raise MissingSettingError(
+                "DATABASE_URL must point at a SQLite file (not :memory:) "
+                "because every college has its own database."
+            )
+        stem, ext = os.path.splitext(base)
+        return url.set(database=f"{stem}_{name}{ext or '.db'}")
+    return url.set(database=name)
+
+
+def master_uri():
+    return _url_for_database(master_database()).render_as_string(hide_password=False)
+
+
+def college_uri(db_name):
+    return _url_for_database(db_name).render_as_string(hide_password=False)
+
+
+def legacy_college_uri():
+    """URI of the old single-college database ("collegedb"), if any."""
+    return college_uri(mysql_database())
 
 
 def sqlalchemy_uri():
-    """DATABASE_URL overrides everything (handy for tests); otherwise the
-    MySQL connection is built from the MYSQL_* variables."""
-    override = get("DATABASE_URL")
-    if override:
-        return override
-    from urllib.parse import quote_plus
-
-    return (
-        f"mysql+pymysql://{quote_plus(mysql_user())}:{quote_plus(mysql_password())}"
-        f"@{mysql_host()}/{mysql_database()}"
-    )
+    """Default URI handed to Flask-SQLAlchemy. Real queries are routed to the
+    logged-in college's database (shared/colleges.py), so this only has to be
+    a valid URL; it points at the registry database."""
+    return master_uri()
 
 
 def mysql_connect_kwargs(with_database=True):
@@ -82,10 +128,56 @@ def mysql_connect_kwargs(with_database=True):
     return kwargs
 
 
+# ---- College structure and academic rules ---------------------------------
+def _csv_setting(name, default):
+    raw = get(name, default)
+    return [item.strip().upper() for item in raw.split(",") if item.strip()]
+
+
+def departments():
+    """Department codes offered by the college (DEPARTMENTS, comma separated)."""
+    return _csv_setting("DEPARTMENTS", "CSE,IT,AIDS,ECE,EEE,MECH,CIVIL")
+
+
+def sections():
+    """Section letters used inside a department/year (SECTIONS)."""
+    return _csv_setting("SECTIONS", "A,B,C,D")
+
+
+def max_year():
+    """Length of the degree in years (4 for B.E./B.Tech)."""
+    return int(get("MAX_YEAR", "4"))
+
+
+def pass_mark():
+    """Minimum marks (out of 100) needed to pass a course."""
+    return int(get("PASS_MARK", "50"))
+
+
+def min_attendance():
+    """Minimum attendance percentage before a student is flagged (shortage)."""
+    return int(get("MIN_ATTENDANCE", "75"))
+
+
 # ---- Flask ------------------------------------------------------------
 def secret_key(side):
-    """side is 'teacher' or 'management' -> TEACHER_SECRET_KEY / MANAGEMENT_SECRET_KEY."""
+    """side is 'teacher', 'management' or 'student' -> TEACHER_SECRET_KEY / ..."""
     return get(f"{side.upper()}_SECRET_KEY", required=True)
+
+
+def remember_days():
+    """How long "Remember me" keeps someone logged in (REMEMBER_DAYS, default 7)."""
+    return max(1, int(get("REMEMBER_DAYS", "7")))
+
+
+def csrf_enabled():
+    """CSRF protection is always on; CSRF_DISABLED=1 exists only for automated tests."""
+    return get("CSRF_DISABLED", "0").lower() not in ("1", "true", "yes", "on")
+
+
+def cookie_secure():
+    """Set SESSION_COOKIE_SECURE=1 when the site is served over HTTPS (recommended in production)."""
+    return get("SESSION_COOKIE_SECURE", "0").lower() in ("1", "true", "yes", "on")
 
 
 def debug_enabled():

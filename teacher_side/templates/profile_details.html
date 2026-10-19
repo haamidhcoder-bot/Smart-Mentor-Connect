@@ -1,6 +1,6 @@
 {% extends "base.html" %}
+{% block title %}Profile Details{% endblock %}
 {% block head %}
-<title>Profile Details | Smart Mentor Connect</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
 {% endblock %}
 {% block body %}
@@ -30,9 +30,9 @@
                 </div>
 
                 <div class="account-field">
-                    <label>Class Teacher</label>
+                    <label>Class Advisor</label>
                     <input class="account-readonly" type="text"
-                           value="{% if account.class_teacher and account.class_teacher_sec %}{{ account.class_teacher }} - {{ account.class_teacher_sec }}{% else %}Not assigned{% endif %}"
+                           value="{% if account.advisor_dept and account.advisor_year and account.advisor_section %}{{ account.advisor_dept }} Year {{ account.advisor_year }} - {{ account.advisor_section }}{% else %}Not assigned{% endif %}"
                            readonly>
                 </div>
 

@@ -1,26 +1,19 @@
-import mysql.connector as sql
+from shared.extensions import db
+from shared.models import Attendance, Mark, Student, Teacher
 
-from shared import settings
 
-def connect():
-    cn= sql.connect(**settings.mysql_connect_kwargs())
-
-    cur=cn.cursor()
-
-    return cn,cur
-
-def remove(roll_no=0,name=""):
-    cn,cur=connect()
+def remove(roll_no="", name=""):
+    """Delete a student (with their marks and attendance) by roll number, or
+    a teacher by Gmail address."""
     try:
         if roll_no:
-            cur.execute("delete from students where roll_no=%s",(roll_no,))
+            Mark.query.filter_by(roll_no=roll_no).delete()
+            Attendance.query.filter_by(roll_no=roll_no).delete()
+            Student.query.filter_by(roll_no=roll_no).delete()
         elif name:
-            cur.execute("delete from teachers where Gmail=%s",(name,))
+            Teacher.query.filter_by(Gmail=name).delete()
 
-        cn.commit()
+        db.session.commit()
     except Exception:
-        cn.rollback()
+        db.session.rollback()
         raise
-    finally:
-        cur.close()
-        cn.close()

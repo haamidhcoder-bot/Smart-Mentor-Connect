@@ -4,12 +4,14 @@ from datetime import datetime
 
 from flask import Blueprint, current_app, redirect, render_template, request, session, url_for
 
+from shared import colleges
 from shared.models import Student
+from shared.services.roll_no import normalise
 
 auth_bp = Blueprint("auth", __name__)
 
 # The database has no student passwords, so a student signs in with their
-# roll number and date of birth. Because a date of birth is guessable, failed
+# roll / register number and date of birth. Because a date of birth is guessable, failed
 # attempts are throttled per roll number (not per session, which an attacker
 # could simply reset by clearing cookies).
 MAX_FAILURES = 5
@@ -51,11 +53,17 @@ def login_page():
     dob_raw = request.form.get("dob", "").strip()
     generic = "Incorrect roll number or date of birth."
 
-    if not roll_raw.isdigit() or not dob_raw:
-        return render_template("login_page.html", error=generic, roll_no=roll_raw)
-    roll_no = int(roll_raw)
+    info = colleges.activate(request.form.get("college", ""))
+    if info is None:
+        return render_template("login_page.html", error="Please select your college.", roll_no=roll_raw)
 
-    wait = _locked_for(roll_no)
+    roll_no = normalise(roll_raw)
+    if not roll_no or not dob_raw:
+        return render_template("login_page.html", error=generic, roll_no=roll_raw)
+
+    # Roll numbers can repeat between colleges, so throttle per college too.
+    key = (info.slug, roll_no)
+    wait = _locked_for(key)
     if wait:
         current_app.logger.warning(f"login locked for roll {roll_no}")
         return render_template(
@@ -71,13 +79,14 @@ def login_page():
 
     student = Student.query.filter_by(roll_no=roll_no).first()
     if not student or student.DOB is None or student.DOB != dob:
-        _record_failure(roll_no)
+        _record_failure(key)
         current_app.logger.error(f"failed login for roll {roll_no}")
         return render_template("login_page.html", error=generic, roll_no=roll_raw)
 
-    _clear_failures(roll_no)
+    _clear_failures(key)
     session.clear()
     session["logged_in"] = True
+    session["college"] = info.slug
     session["roll_no"] = student.roll_no
     if request.form.get("remember"):
         session.permanent = True

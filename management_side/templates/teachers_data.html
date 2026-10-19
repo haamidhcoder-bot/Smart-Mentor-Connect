@@ -1,7 +1,7 @@
 {% extends "base.html" %}
+{% block title %}Faculty{% endblock %}
 
 {% block head %}
-<title>Teachers | Smart Mentor Connect</title>
 {% endblock %}
 
 {% block body %}
@@ -92,34 +92,6 @@
     }
 </style>
 
-<div id="sendResultsConfirmModal" class="modal-overlay">
-    <div class="modal-box">
-        <div class="modal-header">
-            <span>Confirm Delete</span>
-
-            <span class="modal-close"
-                  onclick="closeSendResultsConfirmModal()">
-                &times;
-            </span>
-        </div>
-
-        <div class="modal-body">
-            Are you sure you want to delete this teacher?
-        </div>
-
-        <div class="modal-footer">
-            <button class="modal-cancel-btn"
-                    onclick="closeSendResultsConfirmModal()">
-                Cancel
-            </button>
-
-            <button id="sendResultsConfirmBtn">
-                Yes, delete
-            </button>
-        </div>
-    </div>
-</div>
-
 <div class="container">
 
     <div class="card">
@@ -134,7 +106,7 @@
 
             <div style="display:flex;align-items:center;gap:12px;">
                 <h2 style="margin-bottom:0;">
-                    Teachers Details
+                    Faculty (class advisors)
                 </h2>
 
                 <span class="teacher-count-badge">
@@ -144,7 +116,7 @@
 
             <a href="{{ url_for('pages.add_teacher') }}"
                class="btn">
-                + Add Teacher
+                + Add Faculty
             </a>
 
         </div>
@@ -155,7 +127,7 @@
 
                 <input type="text"
                        id="teacherSearch"
-                       placeholder="Search by teacher name or email...">
+                       placeholder="Search by email...">
 
             </div>
 
@@ -167,7 +139,8 @@
 
                 <tr>
                     <th>Teacher</th>
-                    <th>Class</th>
+                    <th>Department</th>
+                    <th>Year</th>
                     <th>Section</th>
                     <th>Actions</th>
                 </tr>
@@ -196,12 +169,16 @@
 
                     </td>
 
-                    <td>
-                        {{ tech.class_teacher }}
+                    <td data-label="Department">
+                        {{ tech.advisor_dept or "-" }}
                     </td>
 
-                    <td>
-                        {{ tech.class_teacher_sec }}
+                    <td data-label="Year">
+                        {{ tech.advisor_year or "-" }}
+                    </td>
+
+                    <td data-label="Section">
+                        {{ tech.advisor_section or "-" }}
                     </td>
 
                     <td>
@@ -214,7 +191,9 @@
 
                         <a href="#"
                            class="delete delete-link"
-                           data-url="/delete_teacher/{{ tech.Gmail }}">
+                           data-post="/delete_teacher/{{ tech.Gmail }}"
+                           data-confirm="Delete teacher {{ tech.Gmail|e }}?"
+                           data-confirm-label="Delete">
                             Delete
                         </a>
 
@@ -226,14 +205,14 @@
 
                 <tr>
 
-                    <td colspan="4"
+                    <td colspan="5"
                         style="
                             text-align:center;
                             color:var(--text-muted);
                             padding:30px;
                         ">
 
-                        No teachers added yet.
+                        No faculty added yet.
 
                     </td>
 
@@ -250,22 +229,6 @@
 </div>
 
 <script>
-    let deleteUrl = "";
-
-    function openSendResultsConfirmModal(url) {
-        deleteUrl = url;
-
-        document.getElementById(
-            "sendResultsConfirmModal"
-        ).style.display = "flex";
-    }
-
-    function closeSendResultsConfirmModal() {
-        document.getElementById(
-            "sendResultsConfirmModal"
-        ).style.display = "none";
-    }
-
     document.addEventListener("DOMContentLoaded", function () {
 
         const searchInput =
@@ -309,36 +272,6 @@
                 }
             );
         }
-
-        document.querySelectorAll(
-            ".delete-link"
-        ).forEach(function (link) {
-
-            link.addEventListener(
-                "click",
-                function (event) {
-
-                    event.preventDefault();
-
-                    openSendResultsConfirmModal(
-                        this.dataset.url
-                    );
-                }
-            );
-        });
-
-        document.getElementById(
-            "sendResultsConfirmBtn"
-        ).addEventListener(
-            "click",
-            function () {
-
-                if (deleteUrl) {
-                    window.location.href =
-                        deleteUrl;
-                }
-            }
-        );
     });
 </script>
 

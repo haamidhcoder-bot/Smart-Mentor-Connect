@@ -3,17 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Dashboard{% endblock %} | Smart Mentor Connect</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/smart-mentor-connect.png') }}">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/smart-mentor-connect.png') }}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo-mark.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/logo-mark.png') }}">
     <script>
         (function () {
             var dark = localStorage.getItem("spa-dark-mode") === "true";
             document.documentElement.classList.toggle("dark-mode", dark);
         })();
     </script>
-    <link rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
     <style>
         nav.dock-nav {
             display: flex;
@@ -269,8 +268,11 @@
         }
 </style>
     {%block head%}<!--jinga-->{%endblock%}
+    {% include "_shared_head.html" %}
 </head>
 <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<div hidden data-flash="{{ 'error' if category in ('error','danger') else ('success' if category == 'success' else 'info') }}">{{ message }}</div>{% endfor %}{% endwith %}
     <script>document.body.classList.toggle("dark-mode", document.documentElement.classList.contains("dark-mode"));</script>
     <div id="pageLoadingOverlay" class="page-loading-overlay">
         <div class="spinner"></div>
@@ -285,7 +287,9 @@
         }
     </script>
     <div class="navbar topbar-mobile">
-        <div class="brand"><img src="{{ url_for('static', filename='images/smart-mentor-connect.png') }}" alt="" style="height:1.6em;width:1.6em;vertical-align:middle;margin-right:8px;border-radius:50%;">SMART MENTOR CONNECT</div>
+        <div class="brand"><img class="brand-logo" src="{{ url_for('static', filename='images/logo-mark.png') }}" alt=""><span class="brand-text">Smart Mentor Connect<span class="brand-sub">Teacher portal</span></span></div>
+  
+        {% if current_college() %}<div class="college-chip-mobile"><i class="fa-solid fa-building-columns" aria-hidden="true"></i> {{ current_college().name }}</div>{% endif %}
   
         <nav class="dock-nav">
             <a href="/home" class="dock-item {% if request.path=='/home'or request.path=='/show_results' or request.path=='/' %}active{% endif %}">
@@ -298,7 +302,7 @@
                 <span class="dock-label">Leaderboard</span>
             </a>
 
-            <a href="/attendence" class="dock-item {% if request.path=='/attendence' %}active{% endif %}">
+            <a href="/attendance" class="dock-item {% if request.path=='/attendance' %}active{% endif %}">
                 <i class="fa-solid fa-calendar-check"></i>
                 <span class="dock-label">Attendance</span>
             </a>
@@ -313,10 +317,11 @@
                 <span class="dock-label">Profile</span>
             </a>
 
+            <a href="/log-out" class="dock-item"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i><span class="dock-label">Log out</span></a>
         </nav>
     </div>
 
-    {%if request.path=="/home" or request.path=="/leaderboard" or request.path=="/attendence"%}
+    {%if request.path=="/home" or request.path=="/leaderboard" or request.path=="/attendance"%}
     <button type="button" class="chat-button" id="aiChatToggle">
         <img src="{{ url_for('static', filename='images/Gemini.png') }}" alt="Ask AI">
         <span class="ai-text">Ask AI</span>
@@ -413,7 +418,8 @@
 
     <div class="app-shell">
         <aside class="sidebar">
-            <div class="sidebar-brand"><img src="{{ url_for('static', filename='images/smart-mentor-connect.png') }}" alt="" style="height:1.6em;width:1.6em;vertical-align:middle;margin-right:8px;border-radius:50%;">SMART MENTOR CONNECT</div>
+            <div class="sidebar-brand"><img class="brand-logo" src="{{ url_for('static', filename='images/logo-mark.png') }}" alt=""><span class="brand-text">Smart Mentor Connect<span class="brand-sub">Teacher portal</span></span></div>
+            {% if current_college() %}<div class="college-chip" title="Your college"><i class="fa-solid fa-building-columns" aria-hidden="true"></i><span>{{ current_college().name }}</span></div>{% endif %}
             <nav class="sidebar-nav">
                 <a href="/home" class="sidebar-item {% if request.path=='/home'or request.path=='/show_results' or request.path=='/' %}active{% endif %}">
                     <i class="fa-solid fa-house"></i>
@@ -425,7 +431,7 @@
                     <span>Leaderboard</span>
                 </a>
 
-                <a href="/attendence" class="sidebar-item {% if request.path=='/attendence' %}active{% endif %}">
+                <a href="/attendance" class="sidebar-item {% if request.path=='/attendance' %}active{% endif %}">
                     <i class="fa-solid fa-calendar-check"></i>
                     <span>Attendance</span>
                 </a>
@@ -440,9 +446,15 @@
                     <span>Profile</span>
                 </a>
             </nav>
+            <div class="sidebar-footer">
+                <a href="/log-out" class="sidebar-item logout">
+                    <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
+                    <span>Log out</span>
+                </a>
+            </div>
         </aside>
 
-        <div class="app-main">
+        <div class="app-main" id="main">
             {%block body%}{%endblock%}
         </div>
     </div>

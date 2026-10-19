@@ -1,5 +1,5 @@
 /* ============================================================
-   School Management System — Blue Theme
+   Smart Mentor Connect — Blue Theme
    style.css
    ============================================================ */
 
@@ -277,7 +277,9 @@ h1, h2, h3 {
 .login-box .login-subtitle {
     color: rgba(255, 255, 255, 0.8);
     font-size: 0.85rem;
-    margin: -22px 0 26px;
+    margin: 0 0 26px;
+    position: relative;
+    text-decoration: none;
 }
 
 .login-box h1.has-underline::after {
@@ -285,7 +287,7 @@ h1, h2, h3 {
     display: block;
     width: 44px;
     height: 3px;
-    margin: 10px auto 0;
+    margin: 10px auto 14px;
     border-radius: 3px;
     background: linear-gradient(90deg, var(--primary-light), var(--white));
 }
@@ -2037,3 +2039,22 @@ body.dark-mode .page-loading-overlay {
 .face-capture-flash.is-active {
     opacity: 1;
 }
+
+/* College dropdown on the login / register / reset pages */
+.login-box select.college-select {
+    width: 100%;
+    padding: 14px 20px;
+    margin-bottom: 18px;
+    border-radius: 26px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--white);
+    font-size: 0.95rem;
+    appearance: auto;
+}
+.login-box select.college-select:focus {
+    outline: none;
+    background: rgba(255, 255, 255, 0.25);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.25);
+}
+.login-box select.college-select option { color: #111; background: #fff; }
