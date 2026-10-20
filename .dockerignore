@@ -1,9 +1,0 @@
-.git
-.env
-**/__pycache__
-*.pyc
-.pytest_cache
-shared/face_ids/*
-!shared/face_ids/.gitignore
-*.log
-tests
